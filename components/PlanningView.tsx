@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { ShoppingItem } from '../types';
 import { getSmartCategorization, parseReceiptPrices } from '../services/geminiService';
 import { CATEGORIES } from '../constants/commonItems';
@@ -16,6 +16,11 @@ interface PlanningViewProps {
 
 const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook, updateItem: updateItemHook, removeItem: removeItemHook }) => {
   const [newItemName, setNewItemName] = useState('');
+
+  const capitalizeFirstLetter = useCallback((str: string) => {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }, []);
   const [isLoading, setIsLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>(["Basisvarer"]);
@@ -30,13 +35,15 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
     const trimmedName = name.trim();
     if (!trimmedName || isLoading) return;
 
-    if (items.some(i => i.name.toLowerCase() === trimmedName.toLowerCase())) {
-      addToast(`${trimmedName} er allerede i listen`, 'info');
+    const capitalizedName = capitalizeFirstLetter(trimmedName);
+
+    if (items.some(i => i.name.toLowerCase() === capitalizedName.toLowerCase())) {
+      addToast(`${capitalizedName} er allerede i listen`, 'info');
       return;
     }
 
     // 1. Check Global Catalog first (Fast Path)
-    const existingProduct = getProduct(trimmedName);
+    const existingProduct = getProduct(capitalizedName);
 
     if (existingProduct) {
       const newItem: ShoppingItem = {
@@ -60,14 +67,14 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
       // 2. AI Fallback (Slow Path)
       setIsLoading(true);
       try {
-        const category = await getSmartCategorization(trimmedName);
+        const category = await getSmartCategorization(capitalizedName);
 
         // Save to global catalog immediately for next time
-        await addOrUpdateProduct(trimmedName, 0, category);
+        await addOrUpdateProduct(capitalizedName, 0, category);
 
         const newItem: ShoppingItem = {
           id: crypto.randomUUID(),
-          name: trimmedName,
+          name: capitalizedName,
           quantity: 1,
           unit: 'stk',
           price: 0,
@@ -78,7 +85,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
 
         await addItemHook(newItem);
         setNewItemName('');
-        addToast(`La til ${trimmedName}`, 'success');
+        addToast(`La til ${capitalizedName}`, 'success');
       } catch (error) {
         console.error(error);
         addToast("Feil ved kategorisering", 'error');

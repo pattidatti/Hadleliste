@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useCatalog } from '../hooks/useCatalog';
 import { useCategories } from '../hooks/useCategories';
 import { Product, PriceHistoryRecord } from '../types';
@@ -11,6 +11,12 @@ const ProductsView: React.FC = () => {
     const { addToast } = useToast();
 
     const [searchTerm, setSearchTerm] = useState('');
+
+    const capitalizeFirstLetter = useCallback((str: string) => {
+        if (!str) return '';
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    }, []);
+
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [isAddingProduct, setIsAddingProduct] = useState(false);
     const [isManagingCategories, setIsManagingCategories] = useState(false);
@@ -69,12 +75,14 @@ const ProductsView: React.FC = () => {
 
         if (!name.trim()) return;
 
+        const capitalizedName = capitalizeFirstLetter(name.trim());
+
         try {
             if (editingProduct) {
-                await updateProduct(editingProduct.id, { name, price, category });
+                await updateProduct(editingProduct.id, { name: capitalizedName, price, category });
                 addToast("Vare oppdatert", "success");
             } else {
-                await addOrUpdateProduct(name, price, category);
+                await addOrUpdateProduct(capitalizedName, price, category);
                 addToast("Vare lagt til", "success");
             }
             setEditingProduct(null);

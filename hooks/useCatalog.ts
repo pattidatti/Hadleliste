@@ -3,6 +3,11 @@ import { db, doc, onSnapshot, setDoc, updateDoc, collection, query, writeBatch }
 import { Product, PriceHistoryRecord } from '../types';
 import { useAuth } from './useAuth';
 
+const capitalizeFirstLetter = (str: string) => {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1);
+};
+
 export const useCatalog = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
@@ -34,7 +39,9 @@ export const useCatalog = () => {
     }, [user]);
 
     const addOrUpdateProduct = useCallback(async (name: string, price?: number, category?: string) => {
-        const id = name.trim().toLowerCase();
+        const trimmedName = name.trim();
+        const capitalizedName = capitalizeFirstLetter(trimmedName);
+        const id = capitalizedName.toLowerCase();
         const existingProduct = products.find(p => p.id === id);
         const now = Date.now();
         const batch = writeBatch(db);
@@ -63,7 +70,7 @@ export const useCatalog = () => {
         } else {
             const newProduct: Product = {
                 id,
-                name: name.trim(),
+                name: capitalizedName,
                 category: category || "Annet",
                 price: price || 0,
                 unit: 'stk',
