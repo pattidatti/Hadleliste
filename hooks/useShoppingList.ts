@@ -41,6 +41,7 @@ export interface UseShoppingListReturn {
     addItem: (item: Omit<ShoppingItem, 'id' | 'createdAt'>) => Promise<void>;
     updateItem: (id: string, updates: Partial<ShoppingItem>) => Promise<void>;
     removeItem: (id: string) => Promise<void>;
+    resetBoughtItems: () => Promise<boolean>;
 }
 
 export const useShoppingList = (user: User | null): UseShoppingListReturn => {
@@ -225,6 +226,32 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         });
     }, [currentListId]);
 
+    const resetBoughtItems = useCallback(async (): Promise<boolean> => {
+        if (!currentListId) return false;
+
+        try {
+            const boughtItems = items.filter(i => i.isBought);
+            if (boughtItems.length === 0) return true;
+
+            const batch = writeBatch(db);
+            const now = serverTimestamp();
+
+            boughtItems.forEach(item => {
+                const docRef = doc(db, "lists", currentListId, "items", item.id);
+                batch.update(docRef, { isBought: false });
+            });
+
+            // Update parent timestamp
+            batch.update(doc(db, "lists", currentListId), { updatedAt: now });
+
+            await batch.commit();
+            return true;
+        } catch (e) {
+            console.error("Failed to reset items:", e);
+            return false;
+        }
+    }, [currentListId, items]);
+
     // Legacy updateItems (kept for compatibility during transition if needed, 
     // but we should phase it out)
     const updateItems = useCallback(async (newItems: ShoppingItem[]) => {
@@ -375,6 +402,7 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         addItem,
         updateItem,
         removeItem,
+        resetBoughtItems,
         createList,
         inviteCollaborator,
         currentListName,

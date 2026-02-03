@@ -26,6 +26,7 @@ const App: React.FC = () => {
     renameList,
     deleteList,
     deleteLists,
+    resetBoughtItems,
     toggleListVisibility,
     removeCollaborator,
     leaveList,
@@ -145,6 +146,7 @@ const App: React.FC = () => {
               items={items}
               updateItem={updateItem}
               removeItem={removeItem}
+              onReset={resetBoughtItems}
             />
           </div>
         )}

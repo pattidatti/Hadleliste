@@ -3,11 +3,13 @@ import { ShoppingItem } from '../types';
 import { CATEGORIES } from '../constants/commonItems';
 import { useSwipe } from '../hooks/useSwipe';
 import { useCatalog } from '../hooks/useCatalog';
+import { useToast } from './Toast';
 
 interface StoreViewProps {
   items: ShoppingItem[];
   updateItem: (id: string, updates: Partial<ShoppingItem>) => Promise<void>;
   removeItem: (id: string) => Promise<void>;
+  onReset: () => Promise<boolean>;
 }
 
 const SwipeableItem = ({ item, onToggle, onDelete }: { item: ShoppingItem, onToggle: (id: string) => void, onDelete: (id: string) => void }) => {
@@ -25,40 +27,44 @@ const SwipeableItem = ({ item, onToggle, onDelete }: { item: ShoppingItem, onTog
 
       {/* Foreground Content */}
       <div
-        className={`bg-white p-4 flex items-center gap-3 shadow-sm border border-slate-100 relative z-10 transition-transform duration-75`}
+        className={`bg-white flex items-center shadow-sm border border-slate-100 relative z-10 transition-transform duration-75 active:bg-slate-50`}
         style={{ transform: `translateX(-${offset}px)` }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
+        onClick={() => onToggle(item.id)}
       >
-        <div
-          onClick={() => onToggle(item.id)}
-          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${item.isBought
-            ? 'bg-green-500 border-green-500 scale-105'
-            : 'border-slate-300 hover:border-indigo-400'
-            }`}
-        >
-          {item.isBought && <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
-        </div>
-        <div className="flex-1">
-          <span className={`font-medium text-slate-800 ${item.isBought ? 'line-through text-slate-400' : ''}`}>
-            {item.name}
-          </span>
-          {item.quantity > 1 && (
-            <span className="text-xs text-slate-500 ml-2 font-semibold">x{item.quantity}</span>
-          )}
-        </div>
-        <div className="text-xs text-slate-400 font-medium tracking-wide uppercase">
-          {item.category === 'Annet' ? '' : item.category}
+        <div className="p-4 flex items-center gap-3 flex-1 min-w-0">
+          <div
+            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all flex-shrink-0 ${item.isBought
+              ? 'bg-green-500 border-green-500 scale-105 shadow-lg shadow-green-100'
+              : 'border-slate-300'
+              }`}
+          >
+            {item.isBought && <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
+          </div>
+          <div className="flex-1 truncate">
+            <span className={`font-medium text-slate-800 ${item.isBought ? 'line-through text-slate-400' : ''}`}>
+              {item.name}
+            </span>
+            {item.quantity > 1 && (
+              <span className={`text-xs ml-2 font-bold ${item.isBought ? 'text-slate-300' : 'text-slate-500'}`}>x{item.quantity}</span>
+            )}
+          </div>
+          <div className={`text-[10px] font-black tracking-widest uppercase transition-opacity ${item.isBought ? 'opacity-30' : 'text-slate-400'}`}>
+            {item.category === 'Annet' ? '' : item.category}
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook, removeItem: removeItemHook }) => {
+const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook, removeItem: removeItemHook, onReset }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const { addOrUpdateProduct } = useCatalog(); // Import from hook
+  const [isResetting, setIsResetting] = useState(false);
+  const { addOrUpdateProduct } = useCatalog();
+  const { addToast } = useToast();
 
   const toggleBought = async (id: string) => {
     const item = items.find(i => i.id === id);
@@ -69,6 +75,23 @@ const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook
       addOrUpdateProduct(item.name, item.price, item.category);
     }
     await updateItemHook(id, { isBought: newStatus });
+  };
+
+  const handleReset = async () => {
+    const hasBoughtItems = items.some(i => i.isBought);
+    if (!hasBoughtItems || isResetting) return;
+
+    if (window.confirm('Vil du nullstille hele listen? Alle lister blir markert som "ukjøpt".')) {
+      setIsResetting(true);
+      const success = await onReset();
+      setIsResetting(false);
+
+      if (success) {
+        addToast("Listen er nullstilt", "success");
+      } else {
+        addToast("Kunne ikke nullstille listen", "error");
+      }
+    }
   };
 
   const deleteItem = async (id: string) => {
@@ -109,9 +132,21 @@ const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook
         <div className="sticky top-0 z-10 -mx-4 px-4 pt-2 pb-4 bg-slate-50/95 backdrop-blur-md space-y-3 shadow-sm border-b border-slate-200/50">
           {/* Progress Bar & Search Input Container */}
           <div className="space-y-3">
-            <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest px-1">
-              <span>{boughtItems} av {totalItems} handlet</span>
-              <span>{Math.round(progress)}%</span>
+            <div className="flex justify-between items-end text-xs font-black text-slate-500 uppercase tracking-widest px-1">
+              <div className="flex flex-col gap-1">
+                <span>{boughtItems} av {totalItems} handlet</span>
+                <span className="text-indigo-600">{Math.round(progress)}% fullført</span>
+              </div>
+              {boughtItems > 0 && (
+                <button
+                  onClick={handleReset}
+                  disabled={isResetting}
+                  className="bg-white border-2 border-slate-200 px-3 py-1.5 rounded-lg text-[9px] hover:bg-slate-50 active:scale-95 transition-all flex items-center gap-1.5 text-slate-600"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M3 21v-5h5" /></svg>
+                  {isResetting ? 'Nullstiller...' : 'Nullstill'}
+                </button>
+              )}
             </div>
 
             <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
