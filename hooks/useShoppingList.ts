@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ShoppingItem, SharedList } from '../types';
 import {
     db,
@@ -11,9 +11,12 @@ import {
     addDoc,
     arrayUnion,
     arrayRemove,
-    deleteDoc
+    deleteDoc,
+    orderBy
 } from '../services/firebase';
 import type { User } from '../services/firebase';
+
+const STORAGE_KEY = 'handleliste_current_list_id';
 
 export interface UseShoppingListReturn {
     lists: SharedList[];
@@ -34,20 +37,37 @@ export interface UseShoppingListReturn {
 
 export const useShoppingList = (user: User | null): UseShoppingListReturn => {
     const [lists, setLists] = useState<SharedList[]>([]);
-    const [currentListId, setCurrentListId] = useState<string | null>(null);
+    const [currentListId, setCurrentListId] = useState<string | null>(() => {
+        // Try to restore from localStorage on initial load
+        return localStorage.getItem(STORAGE_KEY);
+    });
     const [items, setItems] = useState<ShoppingItem[]>([]);
+    const isInitialMount = useRef(true);
+
+    // Save currentListId to localStorage whenever it changes
+    useEffect(() => {
+        if (currentListId) {
+            localStorage.setItem(STORAGE_KEY, currentListId);
+        } else {
+            localStorage.removeItem(STORAGE_KEY);
+        }
+    }, [currentListId]);
 
     // Fetch lists user has access to
     useEffect(() => {
-        if (!user) {
+        if (!user || !user.email) {
             setLists([]);
             setItems([]);
             return;
         }
 
+        const userEmail = user.email.toLowerCase();
+
+        // Query lists where user is a collaborator, ordered by last update
         const q = query(
             collection(db, "lists"),
-            where("collaborators", "array-contains", user.email)
+            where("collaborators", "array-contains", userEmail),
+            orderBy("updatedAt", "desc")
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -57,19 +77,26 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
                     ...d.data()
                 } as SharedList))
                 .filter(list => !list.deletedAt);
+
             setLists(fetchedLists);
 
-            // Auto-select first list or create new one
-            if (fetchedLists.length > 0 && !currentListId) {
-                setCurrentListId(fetchedLists[0].id);
+            // Auto-select logic:
+            // 1. If we have a stored ID and it exists in fetched lists, keep it.
+            // 2. Otherwise, if lists exist, select the most recently updated one.
+            if (fetchedLists.length > 0) {
+                const stillExists = currentListId && fetchedLists.some(l => l.id === currentListId);
+                if (!stillExists) {
+                    setCurrentListId(fetchedLists[0].id);
+                }
+            } else {
+                setCurrentListId(null);
             }
         }, (error) => {
             console.error("Error fetching lists:", error);
-            // If permission denied, checking rules is needed.
         });
 
         return unsubscribe;
-    }, [user]); // Removed currentListId to prevent listener recreation
+    }, [user?.email]); // Re-run if user email changes (e.g. login/logout)
 
     // Sync current list items
     useEffect(() => {
@@ -93,11 +120,12 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         if (!user || !user.email) return;
 
         try {
+            const userEmail = user.email.toLowerCase();
             const newList = {
                 name,
                 ownerId: user.uid,
-                ownerEmail: user.email,
-                collaborators: [user.email],
+                ownerEmail: userEmail,
+                collaborators: [userEmail],
                 items: [],
                 updatedAt: Date.now(),
                 isPrivate: true
@@ -125,7 +153,8 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         try {
             await updateDoc(doc(db, "lists", currentListId), {
                 collaborators: arrayUnion(email.trim().toLowerCase()),
-                isPrivate: false
+                isPrivate: false,
+                updatedAt: Date.now()
             });
             return true;
         } catch (e) {
@@ -157,7 +186,8 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
             });
 
             if (currentListId === id) {
-                setCurrentListId(null);
+                // The useEffect will handle fallback to the next available list
+                localStorage.removeItem(STORAGE_KEY);
             }
             return true;
         } catch (e) {
@@ -183,8 +213,9 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
 
     const removeCollaborator = useCallback(async (listId: string, email: string): Promise<boolean> => {
         try {
+            const lowerEmail = email.toLowerCase();
             await updateDoc(doc(db, "lists", listId), {
-                collaborators: arrayRemove(email),
+                collaborators: arrayRemove(lowerEmail),
                 updatedAt: Date.now()
             });
             return true;
@@ -197,11 +228,13 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
     const leaveList = useCallback(async (id: string): Promise<boolean> => {
         if (!user?.email) return false;
         try {
+            const userEmail = user.email.toLowerCase();
             await updateDoc(doc(db, "lists", id), {
-                collaborators: arrayRemove(user.email),
+                collaborators: arrayRemove(userEmail),
                 updatedAt: Date.now()
             });
             if (currentListId === id) {
+                localStorage.removeItem(STORAGE_KEY);
                 setCurrentListId(null);
             }
             return true;

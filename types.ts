@@ -23,7 +23,8 @@ export interface Product {
 export enum AppMode {
   LISTS = 'LISTS',
   PLANNING = 'PLANNING',
-  STORE = 'STORE'
+  STORE = 'STORE',
+  REGISTER = 'REGISTER'
 }
 
 // CATEGORIES is now exported from constants/commonItems.ts

@@ -20,7 +20,9 @@ import {
   arrayUnion,
   arrayRemove,
   getDocs,
-  deleteDoc
+  deleteDoc,
+  writeBatch,
+  orderBy
 } from "firebase/firestore";
 
 // Firebase config loaded from environment variables (set in GitHub Secrets)
@@ -67,7 +69,23 @@ export const signIn = () => signInWithPopup(auth, googleProvider);
 export const logOut = () => signOut(auth);
 
 // Re-export Firebase functions for use in other files
-export { onAuthStateChanged, collection, doc, onSnapshot, updateDoc, addDoc, arrayUnion, arrayRemove, query, where, deleteDoc, setDoc, getDocs };
+export {
+  onAuthStateChanged,
+  collection,
+  doc,
+  onSnapshot,
+  updateDoc,
+  addDoc,
+  arrayUnion,
+  arrayRemove,
+  query,
+  where,
+  deleteDoc,
+  setDoc,
+  getDocs,
+  writeBatch,
+  orderBy
+};
 export type { User };
 
 export interface ListData {

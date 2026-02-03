@@ -8,6 +8,7 @@ import ListsView from './components/ListsView';
 import LoadingSpinner from './components/LoadingSpinner';
 import { useAuth } from './hooks/useAuth';
 import { useShoppingList } from './hooks/useShoppingList';
+import ProductsView from './components/ProductsView';
 
 const App: React.FC = () => {
   const { user, loading, signIn, logOut } = useAuth();
@@ -63,6 +64,13 @@ const App: React.FC = () => {
               }`}
           >
             Handle
+          </button>
+          <button
+            onClick={() => setMode(AppMode.REGISTER)}
+            className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wide rounded-lg transition-all duration-200 z-10 ${mode === AppMode.REGISTER ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+              }`}
+          >
+            Varer
           </button>
         </div>
       </header>
@@ -125,6 +133,16 @@ const App: React.FC = () => {
         {mode === AppMode.STORE && (
           <div className="px-4 py-6">
             <StoreView items={items} setItems={updateItems} />
+          </div>
+        )}
+
+        {mode === AppMode.REGISTER && (
+          <div className="px-4 py-6">
+            <div className="mb-6">
+              <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Produktregister</p>
+              <h2 className="text-2xl font-black text-slate-900">Alle varer</h2>
+            </div>
+            <ProductsView />
           </div>
         )}
       </main>

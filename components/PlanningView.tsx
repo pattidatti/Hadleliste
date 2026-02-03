@@ -291,10 +291,13 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
                             className="w-full pl-7 pr-3 py-1.5 bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
                           />
                         </div>
-                        {(item.price || 0) > 0 && item.quantity > 1 && (
-                          <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">
-                            = {(item.price * item.quantity).toFixed(0)},-
-                          </span>
+                        {(item.price || 0) > 0 && (
+                          <div className="flex flex-col items-end min-w-[3.5rem]">
+                            <span className="text-[9px] font-black text-indigo-400 uppercase leading-none mb-0.5">Total</span>
+                            <span className="text-xs font-black text-slate-700 whitespace-nowrap">
+                              {(item.price * item.quantity).toFixed(2)} <span className="text-[10px] font-normal text-slate-400 font-sans">kr</span>
+                            </span>
+                          </div>
                         )}
                       </div>
                     </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { db, doc, onSnapshot, setDoc, updateDoc, collection, query } from '../services/firebase';
+import { db, doc, onSnapshot, setDoc, updateDoc, collection, query, deleteDoc } from '../services/firebase';
 import { Product } from '../types';
 
 export const useCatalog = () => {
@@ -24,7 +24,6 @@ export const useCatalog = () => {
         const now = Date.now();
 
         if (existingProduct) {
-            // Update existing
             const updates: Partial<Product> = {
                 lastUpdated: now,
                 count: (existingProduct.count || 0) + 1
@@ -32,13 +31,11 @@ export const useCatalog = () => {
             if (price !== undefined) updates.price = price;
             if (category !== undefined) updates.category = category;
 
-            // Should properly use updateDoc but we need reference, which we know is 'products/id'
             await updateDoc(doc(db, "products", id), updates);
         } else {
-            // Create new
             const newProduct: Product = {
                 id,
-                name: name.trim(), // Keep original easing
+                name: name.trim(),
                 category: category || "Annet",
                 price: price || 0,
                 unit: 'stk',
@@ -48,6 +45,18 @@ export const useCatalog = () => {
             await setDoc(doc(db, "products", id), newProduct);
         }
     }, [products]);
+
+    const updateProduct = useCallback(async (productId: string, updates: Partial<Product>) => {
+        await updateDoc(doc(db, "products", productId), {
+            ...updates,
+            lastUpdated: Date.now()
+        });
+    }, []);
+
+    const deleteProduct = useCallback(async (productId: string) => {
+        if (!window.confirm("Vil du slette denne varen fra katalogen?")) return;
+        await deleteDoc(doc(db, "products", productId));
+    }, []);
 
     const getProduct = useCallback((name: string) => {
         return products.find(p => p.id === name.trim().toLowerCase());
@@ -62,6 +71,8 @@ export const useCatalog = () => {
         products,
         loading,
         addOrUpdateProduct,
+        updateProduct,
+        deleteProduct,
         getProduct,
         searchProducts
     };
