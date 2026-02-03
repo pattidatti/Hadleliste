@@ -4,6 +4,7 @@ import PlanningView from './components/PlanningView';
 import StoreView from './components/StoreView';
 import LoginScreen from './components/LoginScreen';
 import ShareModal from './components/ShareModal';
+import ListsSheet from './components/ListsSheet';
 import LoadingSpinner from './components/LoadingSpinner';
 import { useAuth } from './hooks/useAuth';
 import { useShoppingList } from './hooks/useShoppingList';
@@ -18,11 +19,18 @@ const App: React.FC = () => {
     updateItems,
     createList,
     inviteCollaborator,
-    currentListName
+    currentListName,
+    renameList,
+    deleteList,
+    toggleListVisibility,
+    removeCollaborator,
+    leaveList,
+    isOwner
   } = useShoppingList(user);
 
   const [mode, setMode] = useState<AppMode>(AppMode.PLANNING);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isListsSheetOpen, setIsListsSheetOpen] = useState(false);
 
   // Auto-create first list for new users
   useEffect(() => {
@@ -43,12 +51,19 @@ const App: React.FC = () => {
             <div className="flex items-center gap-2 group">
               <select
                 value={currentListId || ''}
-                onChange={(e) => setCurrentListId(e.target.value)}
+                onChange={(e) => {
+                  if (e.target.value === "__manage__") {
+                    setIsListsSheetOpen(true);
+                  } else {
+                    setCurrentListId(e.target.value);
+                  }
+                }}
                 className="text-xl font-black text-slate-900 bg-transparent border-none p-0 focus:ring-0 cursor-pointer appearance-none max-w-[200px] truncate"
               >
                 {lists.map(l => (
                   <option key={l.id} value={l.id}>{l.name}</option>
                 ))}
+                <option value="__manage__">⚙️ Administrer lister</option>
               </select>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-slate-300 group-hover:text-indigo-500 transition-colors">
                 <path d="m6 9 6 6 6-6" />
@@ -110,6 +125,27 @@ const App: React.FC = () => {
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
         onShare={inviteCollaborator}
+        listName={currentListName}
+        collaborators={lists.find(l => l.id === currentListId)?.collaborators}
+        ownerEmail={lists.find(l => l.id === currentListId)?.ownerEmail}
+        onRemoveCollaborator={(email) => currentListId ? removeCollaborator(currentListId, email) : Promise.resolve(false)}
+        isOwner={currentListId ? isOwner(currentListId) : false}
+      />
+
+      {/* Lists Management Sheet */}
+      <ListsSheet
+        isOpen={isListsSheetOpen}
+        onClose={() => setIsListsSheetOpen(false)}
+        lists={lists}
+        currentListId={currentListId}
+        onSelectList={setCurrentListId}
+        onCreateList={createList}
+        onRenameList={renameList}
+        onDeleteList={deleteList}
+        onToggleVisibility={toggleListVisibility}
+        onLeaveList={leaveList}
+        isOwner={isOwner}
+        userEmail={user?.email || ''}
       />
 
       {/* Main Content */}

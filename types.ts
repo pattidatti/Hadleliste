@@ -30,4 +30,5 @@ export interface SharedList {
   ownerEmail: string;
   collaborators: string[];
   updatedAt: number;
+  isPrivate?: boolean;
 }

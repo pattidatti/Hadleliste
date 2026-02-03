@@ -9,7 +9,9 @@ import {
     onSnapshot,
     updateDoc,
     addDoc,
-    arrayUnion
+    arrayUnion,
+    arrayRemove,
+    deleteDoc
 } from '../services/firebase';
 import type { User } from '../services/firebase';
 
@@ -22,6 +24,12 @@ export interface UseShoppingListReturn {
     createList: (name: string) => Promise<void>;
     inviteCollaborator: (email: string) => Promise<boolean>;
     currentListName: string;
+    renameList: (id: string, newName: string) => Promise<boolean>;
+    deleteList: (id: string) => Promise<boolean>;
+    toggleListVisibility: (id: string) => Promise<boolean>;
+    removeCollaborator: (listId: string, email: string) => Promise<boolean>;
+    leaveList: (id: string) => Promise<boolean>;
+    isOwner: (listId: string) => boolean;
 }
 
 export const useShoppingList = (user: User | null): UseShoppingListReturn => {
@@ -115,6 +123,83 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         }
     }, [currentListId]);
 
+    const renameList = useCallback(async (id: string, newName: string): Promise<boolean> => {
+        if (!newName.trim()) return false;
+        try {
+            await updateDoc(doc(db, "lists", id), {
+                name: newName.trim(),
+                updatedAt: Date.now()
+            });
+            return true;
+        } catch (e) {
+            console.error("Failed to rename list:", e);
+            return false;
+        }
+    }, []);
+
+    const deleteList = useCallback(async (id: string): Promise<boolean> => {
+        try {
+            await deleteDoc(doc(db, "lists", id));
+            if (currentListId === id) {
+                setCurrentListId(null);
+            }
+            return true;
+        } catch (e) {
+            console.error("Failed to delete list:", e);
+            return false;
+        }
+    }, [currentListId]);
+
+    const toggleListVisibility = useCallback(async (id: string): Promise<boolean> => {
+        const list = lists.find(l => l.id === id);
+        if (!list) return false;
+        try {
+            await updateDoc(doc(db, "lists", id), {
+                isPrivate: !list.isPrivate,
+                updatedAt: Date.now()
+            });
+            return true;
+        } catch (e) {
+            console.error("Failed to toggle visibility:", e);
+            return false;
+        }
+    }, [lists]);
+
+    const removeCollaborator = useCallback(async (listId: string, email: string): Promise<boolean> => {
+        try {
+            await updateDoc(doc(db, "lists", listId), {
+                collaborators: arrayRemove(email),
+                updatedAt: Date.now()
+            });
+            return true;
+        } catch (e) {
+            console.error("Failed to remove collaborator:", e);
+            return false;
+        }
+    }, []);
+
+    const leaveList = useCallback(async (id: string): Promise<boolean> => {
+        if (!user?.email) return false;
+        try {
+            await updateDoc(doc(db, "lists", id), {
+                collaborators: arrayRemove(user.email),
+                updatedAt: Date.now()
+            });
+            if (currentListId === id) {
+                setCurrentListId(null);
+            }
+            return true;
+        } catch (e) {
+            console.error("Failed to leave list:", e);
+            return false;
+        }
+    }, [user?.email, currentListId]);
+
+    const isOwner = useCallback((listId: string) => {
+        const list = lists.find(l => l.id === listId);
+        return list?.ownerId === user?.uid;
+    }, [lists, user?.uid]);
+
     const currentListName = lists.find(l => l.id === currentListId)?.name || "Laster...";
 
     return {
@@ -125,7 +210,13 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         updateItems,
         createList,
         inviteCollaborator,
-        currentListName
+        currentListName,
+        renameList,
+        deleteList,
+        toggleListVisibility,
+        removeCollaborator,
+        leaveList,
+        isOwner
     };
 };
 

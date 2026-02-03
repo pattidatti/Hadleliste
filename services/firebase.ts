@@ -18,6 +18,7 @@ import {
   where,
   addDoc,
   arrayUnion,
+  arrayRemove,
   getDocs,
   deleteDoc
 } from "firebase/firestore";
@@ -41,7 +42,7 @@ export const signIn = () => signInWithPopup(auth, googleProvider);
 export const logOut = () => signOut(auth);
 
 // Re-export Firebase functions for use in other files
-export { onAuthStateChanged, collection, doc, onSnapshot, updateDoc, addDoc, arrayUnion, query, where, deleteDoc };
+export { onAuthStateChanged, collection, doc, onSnapshot, updateDoc, addDoc, arrayUnion, arrayRemove, query, where, deleteDoc };
 export type { User };
 
 export interface ListData {

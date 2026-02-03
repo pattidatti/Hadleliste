@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useToast } from './Toast';
 
@@ -6,67 +5,119 @@ interface ShareModalProps {
     isOpen: boolean;
     onClose: () => void;
     onShare: (email: string) => Promise<boolean>;
+    listName?: string;
+    collaborators?: string[];
+    ownerEmail?: string;
+    onRemoveCollaborator?: (email: string) => Promise<boolean>;
+    isOwner?: boolean;
 }
 
-const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onShare }) => {
+const ShareModal: React.FC<ShareModalProps> = ({
+    isOpen,
+    onClose,
+    onShare,
+    listName,
+    collaborators = [],
+    ownerEmail,
+    onRemoveCollaborator,
+    isOwner
+}) => {
     const [email, setEmail] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSharing, setIsSharing] = useState(false);
     const { addToast } = useToast();
 
     if (!isOpen) return null;
 
-    const handleSubmit = async () => {
-        if (!email.trim() || isSubmitting) return;
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!email.trim() || isSharing) return;
 
-        setIsSubmitting(true);
+        setIsSharing(true);
         const success = await onShare(email);
-        setIsSubmitting(false);
-
         if (success) {
-            addToast(`${email} er lagt til!`, 'success');
+            addToast(`Invitasjon sendt til ${email}`, 'success');
             setEmail('');
-            onClose();
         } else {
-            addToast("Kunne ikke legge til person. Sjekk tilgangen din.", 'error');
+            addToast('Kunne ikke sende invitasjon', 'error');
         }
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
-            handleSubmit();
-        }
+        setIsSharing(false);
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm">
-            <div className="bg-white rounded-3xl p-8 w-full max-w-xs shadow-2xl space-y-6 animate-in zoom-in-95">
-                <div className="text-center">
-                    <h3 className="text-lg font-black text-slate-900">Del denne listen</h3>
-                    <p className="text-xs text-slate-500 mt-1">Legg til e-posten til den du vil dele med.</p>
-                </div>
-                <input
-                    type="email"
-                    placeholder="navn@epost.no"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                    autoFocus
-                />
-                <div className="flex gap-2">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300"
+                onClick={onClose}
+            />
+            <div className="relative bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-500">
+                <div className="px-8 pt-10 pb-8">
+                    <header className="mb-8">
+                        <h2 className="text-2xl font-black text-slate-900 mb-1">Del liste</h2>
+                        <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{listName || "Laster..."}</p>
+                    </header>
+
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Legg til via e-post</label>
+                            <div className="relative flex gap-2">
+                                <input
+                                    type="email"
+                                    required
+                                    placeholder="venn@eksempel.no"
+                                    autoFocus
+                                    className="flex-1 bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={!email.trim() || isSharing}
+                                    className="w-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-indigo-600 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-slate-100"
+                                >
+                                    {isSharing ? (
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    {collaborators.length > 0 && (
+                        <div className="mt-10">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">Deltakere ({collaborators.length})</label>
+                            <div className="space-y-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                                {collaborators.map(cEmail => (
+                                    <div key={cEmail} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="w-8 h-8 rounded-full bg-white border border-slate-100 flex items-center justify-center text-[10px] font-black text-slate-400">
+                                                {cEmail.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-bold text-slate-700 truncate">{cEmail}</p>
+                                                {ownerEmail === cEmail && <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest">Eier</p>}
+                                            </div>
+                                        </div>
+                                        {isOwner && ownerEmail !== cEmail && onRemoveCollaborator && (
+                                            <button
+                                                onClick={() => onRemoveCollaborator(cEmail)}
+                                                className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <button
                         onClick={onClose}
-                        className="flex-1 py-3 text-slate-500 font-bold text-sm"
-                        disabled={isSubmitting}
+                        className="w-full mt-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] hover:text-slate-600 transition-colors"
                     >
-                        Avbryt
-                    </button>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={isSubmitting || !email.trim()}
-                        className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-indigo-100 shadow-lg disabled:opacity-50"
-                    >
-                        {isSubmitting ? 'Deler...' : 'Del'}
+                        Lukk
                     </button>
                 </div>
             </div>
