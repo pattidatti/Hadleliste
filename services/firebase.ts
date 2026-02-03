@@ -22,7 +22,9 @@ import {
   getDocs,
   deleteDoc,
   writeBatch,
-  orderBy
+  orderBy,
+  serverTimestamp,
+  collectionGroup
 } from "firebase/firestore";
 
 // Firebase config loaded from environment variables (set in GitHub Secrets)
@@ -84,7 +86,9 @@ export {
   setDoc,
   getDocs,
   writeBatch,
-  orderBy
+  orderBy,
+  serverTimestamp,
+  collectionGroup
 };
 export type { User };
 

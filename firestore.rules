@@ -7,18 +7,24 @@ service cloud.firestore {
         // Eier har alltid tilgang
         request.auth.uid == resource.data.ownerId ||
         
-        // Delt liste: Bruker er i collaborators og listen er IKKE privat
-        (resource.data.isPrivate != true && request.auth.token.email in resource.data.collaborators) ||
+        // Samarbeidspartner har tilgang (uavhengig om den er privat for andre)
+        (request.auth.token.email in resource.data.collaborators) ||
         
-        // Spesialtilfelle for oppdatering av collaborators (forlat/fjern)
-        (request.auth.token.email in resource.data.collaborators && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['collaborators', 'updatedAt']))
+        // Når man oppretter en ny liste
+        (request.resource.data.ownerId == request.auth.uid)
       );
       
-      // Kun eier kan slette listen
+      // Kun eier kan slette listen (eller dokumentet)
       allow delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
       
-      // Opprettelse
-      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      // Regler for varer i listen (subcollection)
+      match /items/{itemId} {
+        allow read, write: if request.auth != null && (
+          // Sjekk tilgang på foreldredokumentet (listen)
+          get(/databases/$(database)/documents/lists/$(listId)).data.ownerId == request.auth.uid ||
+          request.auth.token.email in get(/databases/$(database)/documents/lists/$(listId)).data.collaborators
+        );
+      }
     }
 
     match /products/{productId} {

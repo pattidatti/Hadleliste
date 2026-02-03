@@ -12,7 +12,9 @@ import {
     arrayUnion,
     arrayRemove,
     deleteDoc,
-    orderBy
+    orderBy,
+    serverTimestamp,
+    setDoc
 } from '../services/firebase';
 import type { User } from '../services/firebase';
 
@@ -23,7 +25,7 @@ export interface UseShoppingListReturn {
     currentListId: string | null;
     setCurrentListId: (id: string | null) => void;
     items: ShoppingItem[];
-    updateItems: (items: ShoppingItem[]) => Promise<void>;
+    updateItems: (items: ShoppingItem[]) => Promise<void>; // Deprecated
     createList: (name: string) => Promise<void>;
     inviteCollaborator: (email: string) => Promise<boolean>;
     currentListName: string;
@@ -33,6 +35,9 @@ export interface UseShoppingListReturn {
     removeCollaborator: (listId: string, email: string) => Promise<boolean>;
     leaveList: (id: string) => Promise<boolean>;
     isOwner: (listId: string) => boolean;
+    addItem: (item: Omit<ShoppingItem, 'id' | 'createdAt'>) => Promise<void>;
+    updateItem: (id: string, updates: Partial<ShoppingItem>) => Promise<void>;
+    removeItem: (id: string) => Promise<void>;
 }
 
 export const useShoppingList = (user: User | null): UseShoppingListReturn => {
@@ -42,7 +47,7 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         return localStorage.getItem(STORAGE_KEY);
     });
     const [items, setItems] = useState<ShoppingItem[]>([]);
-    const isInitialMount = useRef(true);
+    const [currentListItemsFetched, setCurrentListItemsFetched] = useState(false);
 
     // Save currentListId to localStorage whenever it changes
     useEffect(() => {
@@ -98,23 +103,60 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         return unsubscribe;
     }, [user?.email]); // Re-run if user email changes (e.g. login/logout)
 
-    // Sync current list items
+    // Sync current list items (from subcollection)
     useEffect(() => {
         if (!currentListId) {
             setItems([]);
+            setCurrentListItemsFetched(false);
             return;
         }
 
-        const unsubscribe = onSnapshot(doc(db, "lists", currentListId), (docSnap) => {
-            if (docSnap.exists()) {
-                setItems(docSnap.data().items || []);
-            }
+        // Subscribe to items subcollection
+        const itemsQuery = collection(db, "lists", currentListId, "items");
+        const unsubscribe = onSnapshot(itemsQuery, (snapshot) => {
+            const fetchedItems = snapshot.docs.map(d => ({
+                id: d.id,
+                ...d.data()
+            } as ShoppingItem));
+
+            // Client-side sort by createdAt descending
+            setItems(fetchedItems.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
+            setCurrentListItemsFetched(true);
         }, (error) => {
             console.error("Error fetching list items:", error);
         });
 
         return unsubscribe;
     }, [currentListId]);
+
+    // Handle Migration: Move items from array to subcollection
+    useEffect(() => {
+        if (!currentListId || !currentListItemsFetched) return;
+
+        const legacyList = lists.find(l => l.id === currentListId) as any;
+        // Check if the legacy "items" array exists and has data
+        if (legacyList && legacyList.items && Array.isArray(legacyList.items) && legacyList.items.length > 0) {
+            console.log(`Migrating ${legacyList.items.length} items to subcollection for list ${currentListId}`);
+
+            const migrate = async () => {
+                for (const item of legacyList.items) {
+                    const itemRef = doc(db, "lists", currentListId, "items", item.id || crypto.randomUUID());
+                    await setDoc(itemRef, {
+                        ...item,
+                        createdAt: item.createdAt || Date.now()
+                    });
+                }
+
+                // Clear the legacy array and update timestamp
+                await updateDoc(doc(db, "lists", currentListId), {
+                    items: [], // Clear array
+                    updatedAt: serverTimestamp()
+                });
+            };
+
+            migrate().catch(err => console.error("Migration failed:", err));
+        }
+    }, [currentListId, currentListItemsFetched, lists]);
 
     const createList = useCallback(async (name: string) => {
         if (!user || !user.email) return;
@@ -126,8 +168,8 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
                 ownerId: user.uid,
                 ownerEmail: userEmail,
                 collaborators: [userEmail],
-                items: [],
-                updatedAt: Date.now(),
+                // items: [], // No longer needed as it's a subcollection
+                updatedAt: serverTimestamp(),
                 isPrivate: true
             };
 
@@ -138,12 +180,49 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         }
     }, [user]);
 
-    const updateItems = useCallback(async (newItems: ShoppingItem[]) => {
+    const addItem = useCallback(async (item: Omit<ShoppingItem, 'id' | 'createdAt'>) => {
         if (!currentListId) return;
+        const id = crypto.randomUUID();
+        await setDoc(doc(db, "lists", currentListId, "items", id), {
+            ...item,
+            id,
+            createdAt: Date.now() // Local time for initial sort, will be stable
+        });
 
+        // Update parent updatedAt
         await updateDoc(doc(db, "lists", currentListId), {
-            items: newItems,
-            updatedAt: Date.now()
+            updatedAt: serverTimestamp()
+        });
+    }, [currentListId]);
+
+    const updateItem = useCallback(async (id: string, updates: Partial<ShoppingItem>) => {
+        if (!currentListId) return;
+        await updateDoc(doc(db, "lists", currentListId, "items", id), updates);
+
+        // Update parent updatedAt
+        await updateDoc(doc(db, "lists", currentListId), {
+            updatedAt: serverTimestamp()
+        });
+    }, [currentListId]);
+
+    const removeItem = useCallback(async (id: string) => {
+        if (!currentListId) return;
+        await deleteDoc(doc(db, "lists", currentListId, "items", id));
+
+        // Update parent updatedAt
+        await updateDoc(doc(db, "lists", currentListId), {
+            updatedAt: serverTimestamp()
+        });
+    }, [currentListId]);
+
+    // Legacy updateItems (kept for compatibility during transition if needed, 
+    // but we should phase it out)
+    const updateItems = useCallback(async (newItems: ShoppingItem[]) => {
+        console.warn("useShoppingList: updateItems is deprecated. Use granular methods.");
+        // We'll just update the parent timestamp to trigger migration if needed
+        if (!currentListId) return;
+        await updateDoc(doc(db, "lists", currentListId), {
+            updatedAt: serverTimestamp()
         });
     }, [currentListId]);
 
@@ -154,7 +233,7 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
             await updateDoc(doc(db, "lists", currentListId), {
                 collaborators: arrayUnion(email.trim().toLowerCase()),
                 isPrivate: false,
-                updatedAt: Date.now()
+                updatedAt: serverTimestamp()
             });
             return true;
         } catch (e) {
@@ -168,7 +247,7 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         try {
             await updateDoc(doc(db, "lists", id), {
                 name: newName.trim(),
-                updatedAt: Date.now()
+                updatedAt: serverTimestamp()
             });
             return true;
         } catch (e) {
@@ -181,8 +260,8 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         try {
             // Soft delete: Mark as deleted instead of removing document
             await updateDoc(doc(db, "lists", id), {
-                deletedAt: Date.now(),
-                updatedAt: Date.now()
+                deletedAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
             });
 
             if (currentListId === id) {
@@ -202,7 +281,7 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         try {
             await updateDoc(doc(db, "lists", id), {
                 isPrivate: !list.isPrivate,
-                updatedAt: Date.now()
+                updatedAt: serverTimestamp()
             });
             return true;
         } catch (e) {
@@ -216,7 +295,7 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
             const lowerEmail = email.toLowerCase();
             await updateDoc(doc(db, "lists", listId), {
                 collaborators: arrayRemove(lowerEmail),
-                updatedAt: Date.now()
+                updatedAt: serverTimestamp()
             });
             return true;
         } catch (e) {
@@ -231,7 +310,7 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
             const userEmail = user.email.toLowerCase();
             await updateDoc(doc(db, "lists", id), {
                 collaborators: arrayRemove(userEmail),
-                updatedAt: Date.now()
+                updatedAt: serverTimestamp()
             });
             if (currentListId === id) {
                 localStorage.removeItem(STORAGE_KEY);
@@ -256,7 +335,10 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         currentListId,
         setCurrentListId,
         items,
-        updateItems,
+        updateItems, // Deprecated
+        addItem,
+        updateItem,
+        removeItem,
         createList,
         inviteCollaborator,
         currentListName,

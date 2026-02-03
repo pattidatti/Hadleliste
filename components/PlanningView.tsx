@@ -9,10 +9,12 @@ import { useCatalog } from '../hooks/useCatalog';
 
 interface PlanningViewProps {
   items: ShoppingItem[];
-  setItems: (items: ShoppingItem[]) => void;
+  addItem: (item: Omit<ShoppingItem, 'id' | 'createdAt'>) => Promise<void>;
+  updateItem: (id: string, updates: Partial<ShoppingItem>) => Promise<void>;
+  removeItem: (id: string) => Promise<void>;
 }
 
-const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
+const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook, updateItem: updateItemHook, removeItem: removeItemHook }) => {
   const [newItemName, setNewItemName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -47,7 +49,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
         createdAt: Date.now()
       };
 
-      setItems([newItem, ...items]);
+      await addItemHook(newItem);
       setNewItemName('');
       addToast(`La til ${existingProduct.name}`, 'success');
 
@@ -73,7 +75,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
           createdAt: Date.now()
         };
 
-        setItems([newItem, ...items]);
+        await addItemHook(newItem);
         setNewItemName('');
         addToast(`La til ${trimmedName}`, 'success');
       } catch (error) {
@@ -115,8 +117,16 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
             return item;
           });
 
-          setItems(newItems);
-          addToast(`Oppdaterte priser for ${updatedCount} varer fra kvitteringen.`, 'success');
+          // Note: Scan receipt still uses a bulk approach conceptually, 
+          // but we should probably update items one by one or keep it as is if it's rare.
+          // For now, let's update individual items that changed.
+          for (const item of newItems) {
+            const original = items.find(i => i.id === item.id);
+            if (original && original.price !== item.price) {
+              await updateItemHook(item.id, { price: item.price });
+            }
+          }
+          addToast(`Oppdaterte priser fra kvitteringen.`, 'success');
         } else {
           addToast("Klarte ikke å lese priser fra kvitteringen. Prøv et tydeligere bilde.", 'error');
         }
@@ -135,21 +145,19 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
     );
   };
 
-  const removeItem = (id: string) => {
-    setItems(items.filter(item => item.id !== id));
+  const removeItem = async (id: string) => {
+    await removeItemHook(id);
   };
 
-  const updateItem = (id: string, updates: Partial<ShoppingItem>) => {
-    setItems(items.map(item => {
-      if (item.id === id) {
-        // If user manually updates price, sync to global catalog
-        if (updates.price !== undefined) {
-          addOrUpdateProduct(item.name, updates.price);
-        }
-        return { ...item, ...updates };
+  const updateItem = async (id: string, updates: Partial<ShoppingItem>) => {
+    // If user manually updates price, sync to global catalog
+    if (updates.price !== undefined) {
+      const item = items.find(i => i.id === id);
+      if (item) {
+        addOrUpdateProduct(item.name, updates.price);
       }
-      return item;
-    }));
+    }
+    await updateItemHook(id, updates);
   };
 
   const totalPrice = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);

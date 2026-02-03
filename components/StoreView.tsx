@@ -6,7 +6,8 @@ import { useCatalog } from '../hooks/useCatalog';
 
 interface StoreViewProps {
   items: ShoppingItem[];
-  setItems: (items: ShoppingItem[]) => Promise<void>;
+  updateItem: (id: string, updates: Partial<ShoppingItem>) => Promise<void>;
+  removeItem: (id: string) => Promise<void>;
 }
 
 const SwipeableItem = ({ item, onToggle, onDelete }: { item: ShoppingItem, onToggle: (id: string) => void, onDelete: (id: string) => void }) => {
@@ -55,27 +56,24 @@ const SwipeableItem = ({ item, onToggle, onDelete }: { item: ShoppingItem, onTog
   );
 };
 
-const StoreView: React.FC<StoreViewProps> = ({ items, setItems }) => {
+const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook, removeItem: removeItemHook }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const { addOrUpdateProduct } = useCatalog(); // Import from hook
 
-  const toggleBought = (id: string) => {
-    setItems(items.map(item => {
-      if (item.id === id) {
-        const newStatus = !item.isBought;
-        // If marking as bought, update global price intelligence
-        if (newStatus === true) {
-          addOrUpdateProduct(item.name, item.price, item.category);
-        }
-        return { ...item, isBought: newStatus };
-      }
-      return item;
-    }));
+  const toggleBought = async (id: string) => {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    const newStatus = !item.isBought;
+    // If marking as bought, update global price intelligence
+    if (newStatus === true) {
+      addOrUpdateProduct(item.name, item.price, item.category);
+    }
+    await updateItemHook(id, { isBought: newStatus });
   };
 
-  const deleteItem = (id: string) => {
+  const deleteItem = async (id: string) => {
     if (window.confirm('Slette denne varen?')) {
-      setItems(items.filter(i => i.id !== id));
+      await removeItemHook(id);
     }
   };
 
