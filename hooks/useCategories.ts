@@ -4,6 +4,7 @@ import { CATEGORIES as DEFAULT_CATEGORIES } from '../constants/commonItems';
 
 export const useCategories = () => {
     const [categories, setCategories] = useState<string[]>([]);
+    const [archivedCategories, setArchivedCategories] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -12,10 +13,12 @@ export const useCategories = () => {
             if (snapshot.exists()) {
                 const data = snapshot.data();
                 setCategories(data.categories || []);
+                setArchivedCategories(data.archivedCategories || []);
             } else {
                 // Seed with defaults
                 setCategories(DEFAULT_CATEGORIES);
-                setDoc(configDoc, { categories: DEFAULT_CATEGORIES });
+                setArchivedCategories([]);
+                setDoc(configDoc, { categories: DEFAULT_CATEGORIES, archivedCategories: [] });
             }
             setLoading(false);
         });
@@ -27,21 +30,27 @@ export const useCategories = () => {
         const trimmed = name.trim();
         if (!trimmed || categories.includes(trimmed)) return;
 
+        // If it was archived, remove it from archived
+        const newArchived = archivedCategories.filter(c => c !== trimmed);
         const newCategories = [...categories, trimmed];
+
         await updateDoc(doc(db, "configuration", "global"), {
-            categories: newCategories
+            categories: newCategories,
+            archivedCategories: newArchived
         });
-    }, [categories]);
+    }, [categories, archivedCategories]);
 
     const deleteCategory = useCallback(async (name: string) => {
-        if (!window.confirm(`Er du sikker på at du vil slette kategorien "${name}"? Alle varer i denne kategorien vil bli flyttet til "Annet".`)) return;
+        if (!window.confirm(`Vil du arkivere kategorien "${name}"? Alle varer i denne kategorien vil bli flyttet til "Annet".`)) return;
 
         const newCategories = categories.filter(c => c !== name);
+        const newArchived = Array.from(new Set([...archivedCategories, name]));
         const batch = writeBatch(db);
 
-        // 1. Update the category list
+        // 1. Update the category lists
         batch.update(doc(db, "configuration", "global"), {
-            categories: newCategories
+            categories: newCategories,
+            archivedCategories: newArchived
         });
 
         // 2. Move products to "Annet"
@@ -56,7 +65,17 @@ export const useCategories = () => {
         });
 
         await batch.commit();
-    }, [categories]);
+    }, [categories, archivedCategories]);
+
+    const restoreCategory = useCallback(async (name: string) => {
+        const newArchived = archivedCategories.filter(c => c !== name);
+        const newCategories = [...categories, name];
+
+        await updateDoc(doc(db, "configuration", "global"), {
+            categories: newCategories,
+            archivedCategories: newArchived
+        });
+    }, [categories, archivedCategories]);
 
     const renameCategory = useCallback(async (oldName: string, newName: string) => {
         const trimmedNew = newName.trim();
@@ -86,9 +105,11 @@ export const useCategories = () => {
 
     return {
         categories,
+        archivedCategories,
         loading,
         addCategory,
         deleteCategory,
+        restoreCategory,
         renameCategory
     };
 };

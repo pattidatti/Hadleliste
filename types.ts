@@ -18,6 +18,17 @@ export interface Product {
   unit?: string;
   lastUpdated: number;
   count: number; // Popularity
+  deleted?: boolean;
+  deletedAt?: number;
+  deletedBy?: string;
+}
+
+export interface PriceHistoryRecord {
+  id?: string;
+  oldPrice: number;
+  newPrice: number;
+  updatedAt: number;
+  updatedBy: string;
 }
 
 export enum AppMode {
