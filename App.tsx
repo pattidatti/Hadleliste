@@ -28,7 +28,7 @@ const App: React.FC = () => {
     isOwner
   } = useShoppingList(user);
 
-  const [mode, setMode] = useState<AppMode>(AppMode.PLANNING);
+  const [mode, setMode] = useState<AppMode>(AppMode.LISTS);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isListsSheetOpen, setIsListsSheetOpen] = useState(false);
 

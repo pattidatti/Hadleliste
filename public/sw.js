@@ -1,4 +1,4 @@
-const CACHE_NAME = 'handleliste-v1';
+const CACHE_NAME = 'handleliste-v2';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -31,15 +31,37 @@ self.addEventListener('activate', (event) => {
     self.clients.claim();
 });
 
-// Fetch event - cache first strategy for static, network first for API (if any)
-// For now, simple Stale-While-Revalidate or Network-First is safest for dynamic apps.
-// Given Firebase is the main data source and has its own offline persistence, we mainly need to cache the app shell.
+// Fetch event - Network-First for HTML, Cache-First for assets
 self.addEventListener('fetch', (event) => {
-    // Skip cross-origin requests (like Firebase)
+    // Skip cross-origin requests
     if (!event.request.url.startsWith(self.location.origin)) {
         return;
     }
 
+    // Network-First strategy for HTML navigation requests
+    // This ensures the user always gets the app shell if online
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
+                    // Update cache with fresh version
+                    if (response && response.status === 200) {
+                        const responseToCache = response.clone();
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(event.request, responseToCache);
+                        });
+                    }
+                    return response;
+                })
+                .catch(() => {
+                    // Fallback to cache if offline
+                    return caches.match(event.request);
+                })
+        );
+        return;
+    }
+
+    // Cache-First strategy for static assets (JS, CSS, Images)
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
             if (cachedResponse) {

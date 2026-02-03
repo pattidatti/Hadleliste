@@ -34,6 +34,13 @@ const ListCard: React.FC<ListCardProps> = ({
     const { addToast } = useToast();
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
+    // Sync local state when list name updates from outside
+    React.useEffect(() => {
+        if (!isRenaming) {
+            setNewName(list.name);
+        }
+    }, [list.name, isRenaming]);
+
     const { onTouchStart, onTouchMove, onTouchEnd, touchDelta } = useSwipe(
         () => {
             if (isOwner) setIsConfirmingDelete(true);
@@ -91,6 +98,7 @@ const ListCard: React.FC<ListCardProps> = ({
                                 className="w-full bg-white/20 border-none outline-none rounded-lg px-2 py-1 text-white font-bold placeholder:text-white/50"
                                 value={newName}
                                 onClick={(e) => e.stopPropagation()}
+                                onTouchStart={(e) => e.stopPropagation()} // Stop swipe interference
                                 onChange={(e) => setNewName(e.target.value)}
                                 onBlur={handleRename}
                                 onKeyDown={(e) => e.key === 'Enter' && handleRename()}
