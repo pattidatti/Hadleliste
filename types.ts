@@ -15,19 +15,7 @@ export enum AppMode {
   STORE = 'STORE'
 }
 
-export const CATEGORIES = [
-  "Grønnsaker & Frukt",
-  "Meieri & Egg",
-  "Kjøtt & Fisk",
-  "Brød & Bakevarer",
-  "Frysevarer",
-  "Tørrvarer",
-  "Drikke",
-  "Snacks & Godteri",
-  "Hus & Hjem",
-  "Personlig pleie",
-  "Annet"
-];
+// CATEGORIES is now exported from constants/commonItems.ts
 
 export interface GeminiSuggestion {
   name: string;

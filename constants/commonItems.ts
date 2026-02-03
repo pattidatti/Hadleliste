@@ -39,4 +39,17 @@ export const CATALOG: CatalogCategory[] = [
   }
 ];
 
+// Categories for grouping items in views (derived from CATALOG)
+export const CATEGORIES = [
+  "Basisvarer",
+  "Ost & Pålegg",
+  "Middag & Kjøtt",
+  "Pizza & Bakst",
+  "Wok & Krydder",
+  "Taco",
+  "Barn & Hygiene",
+  "Hus & Hjem",
+  "Annet"
+];
+
 export const COMMON_ITEMS = CATALOG.flatMap(c => c.items);
