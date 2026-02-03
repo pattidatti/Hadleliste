@@ -14,7 +14,8 @@ import {
     deleteDoc,
     orderBy,
     serverTimestamp,
-    setDoc
+    setDoc,
+    or
 } from '../services/firebase';
 import type { User } from '../services/firebase';
 
@@ -66,13 +67,15 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
             return;
         }
 
-        const userEmail = user.email.toLowerCase();
+        const userEmail = user.email.trim().toLowerCase();
 
-        // Query lists where user is a collaborator
+        // Query lists where user is either the owner OR a collaborator
         const q = query(
             collection(db, "lists"),
-            where("collaborators", "array-contains", userEmail)
-            // orderBy removed to avoid requiring composite index and ensure instant subscription
+            or(
+                where("ownerId", "==", user.uid),
+                where("collaborators", "array-contains", userEmail)
+            )
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -82,7 +85,11 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
                     ...d.data()
                 } as SharedList))
                 .filter(list => !list.deletedAt)
-                .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)); // Client-side sort
+                .sort((a, b) => {
+                    const timeA = (a.updatedAt as any)?.toMillis?.() || a.updatedAt || 0;
+                    const timeB = (b.updatedAt as any)?.toMillis?.() || b.updatedAt || 0;
+                    return timeB - timeA;
+                }); // Client-side sort
 
             setLists(fetchedLists);
 

@@ -158,11 +158,17 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Footer Status Bar */}
-      <footer className="bg-white border-t border-slate-100 py-3 flex justify-center">
+      {/* Footer Status Bar with Debug Info */}
+      <footer className="bg-white border-t border-slate-100 py-4 flex flex-col items-center gap-1.5">
         <div className="flex items-center gap-1.5 opacity-60">
-          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-          <span className="text-[9px] text-slate-500 uppercase tracking-widest font-black">Sanntid</span>
+          <div className={`w-1.5 h-1.5 rounded-full ${lists.length > 0 ? 'bg-green-500' : 'bg-amber-500'}`}></div>
+          <span className="text-[9px] text-slate-500 uppercase tracking-widest font-black">
+            {lists.length > 0 ? 'Sanntid aktiv' : 'Laster...'}
+          </span>
+        </div>
+        <div className="text-[8px] text-slate-400 font-mono flex gap-3 opacity-50">
+          <span>PROJECT: {process.env.FIREBASE_PROJECT_ID}</span>
+          <span>EMAIL: {user?.email}</span>
         </div>
       </footer>
     </div>
