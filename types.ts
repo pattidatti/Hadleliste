@@ -11,6 +11,7 @@ export interface ShoppingItem {
 }
 
 export enum AppMode {
+  LISTS = 'LISTS',
   PLANNING = 'PLANNING',
   STORE = 'STORE'
 }

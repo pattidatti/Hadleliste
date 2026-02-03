@@ -149,7 +149,49 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
   })).filter(group => group.items.length > 0);
 
   return (
-    <div className="space-y-5 pb-32 animate-in fade-in slide-in-from-bottom-2">
+    <div className="flex flex-col gap-8 pb-32">
+
+      {/* Search & Add Bar */}
+      <section className="w-full relative z-10">
+        <div className="flex gap-2">
+          <form onSubmit={(e) => { e.preventDefault(); addItem(newItemName); }} className="relative flex-1">
+            <input
+              type="text"
+              value={newItemName}
+              onChange={(e) => setNewItemName(e.target.value)}
+              placeholder="Søk eller legg til ny vare..."
+              className="w-full pl-4 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl shadow-sm focus:ring-2 focus:ring-indigo-500 transition-all outline-none text-sm font-medium"
+            />
+            <button
+              type="submit"
+              disabled={!newItemName.trim() || isLoading}
+              className="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-indigo-600 text-white rounded-xl font-bold active:scale-95 transition-transform disabled:opacity-50"
+            >
+              {isLoading ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
+              )}
+            </button>
+          </form>
+
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="p-3.5 bg-white border border-slate-200 rounded-2xl shadow-sm text-indigo-600 hover:bg-indigo-50 active:scale-95 transition-all"
+            title="Skann kvittering"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleScanReceipt}
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+          />
+        </div>
+      </section>
 
       {/* Scanner Overlay */}
       {isScanning && (
@@ -175,48 +217,6 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
           `}</style>
         </div>
       )}
-
-      {/* Search & Add Bar */}
-      <div className="-mx-4 px-4">
-        <div className="flex gap-2">
-          <form onSubmit={(e) => { e.preventDefault(); addItem(newItemName); }} className="relative flex-1">
-            <input
-              type="text"
-              value={newItemName}
-              onChange={(e) => setNewItemName(e.target.value)}
-              placeholder="Søk eller legg til ny vare..."
-              className="w-full pl-4 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-sm"
-            />
-            <button
-              type="submit"
-              disabled={!newItemName.trim() || isLoading}
-              className="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-indigo-600 text-white rounded-xl font-bold active:scale-95 transition-transform disabled:opacity-50"
-            >
-              {isLoading ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
-              )}
-            </button>
-          </form>
-
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="p-3.5 bg-white border border-slate-200 rounded-2xl shadow-sm text-indigo-600 hover:bg-indigo-50 active:scale-95 transition-all"
-            title="Skann kvittering for å oppdatere priser"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
-          </button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleScanReceipt}
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-          />
-        </div>
-      </div>
 
       {/* ACTIVE SHOPPING LIST */}
       <section className="space-y-4">
