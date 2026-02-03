@@ -62,13 +62,14 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
             // Auto-select first list or create new one
             if (fetchedLists.length > 0 && !currentListId) {
                 setCurrentListId(fetchedLists[0].id);
-            } else if (fetchedLists.length === 0 && !currentListId && user) {
-                // Will be handled by createList call from component
             }
+        }, (error) => {
+            console.error("Error fetching lists:", error);
+            // If permission denied, checking rules is needed.
         });
 
         return unsubscribe;
-    }, [user, currentListId]);
+    }, [user]); // Removed currentListId to prevent listener recreation
 
     // Sync current list items
     useEffect(() => {
@@ -81,26 +82,32 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
             if (docSnap.exists()) {
                 setItems(docSnap.data().items || []);
             }
+        }, (error) => {
+            console.error("Error fetching list items:", error);
         });
 
         return unsubscribe;
     }, [currentListId]);
 
     const createList = useCallback(async (name: string) => {
-        if (!user) return;
+        if (!user || !user.email) return;
 
-        const newList = {
-            name,
-            ownerId: user.uid,
-            ownerEmail: user.email,
-            collaborators: [user.email],
-            items: [],
-            updatedAt: Date.now(),
-            isPrivate: true
-        };
+        try {
+            const newList = {
+                name,
+                ownerId: user.uid,
+                ownerEmail: user.email,
+                collaborators: [user.email],
+                items: [],
+                updatedAt: Date.now(),
+                isPrivate: true
+            };
 
-        const docRef = await addDoc(collection(db, "lists"), newList);
-        setCurrentListId(docRef.id);
+            const docRef = await addDoc(collection(db, "lists"), newList);
+            setCurrentListId(docRef.id);
+        } catch (e) {
+            console.error("Failed to create list:", e);
+        }
     }, [user]);
 
     const updateItems = useCallback(async (newItems: ShoppingItem[]) => {

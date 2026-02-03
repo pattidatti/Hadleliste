@@ -1,4 +1,4 @@
-const CACHE_NAME = 'handleliste-v2';
+const CACHE_NAME = 'handleliste-v3';
 const STATIC_ASSETS = [
     '/',
     '/index.html',

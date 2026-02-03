@@ -84,7 +84,7 @@ const ListsView: React.FC<ListsViewProps> = ({
                         </div>
                     ) : (
                         <div className="grid gap-4">
-                            {lists.sort((a, b) => b.updatedAt - a.updatedAt).map(list => (
+                            {[...lists].sort((a, b) => b.updatedAt - a.updatedAt).map(list => (
                                 <ListCard
                                     key={list.id}
                                     list={list}

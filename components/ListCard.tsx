@@ -34,12 +34,20 @@ const ListCard: React.FC<ListCardProps> = ({
     const { addToast } = useToast();
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
-    // Sync local state when list name updates from outside
+    // Optimistic state for immediate UI feedback
+    const [optimisticName, setOptimisticName] = useState(list.name);
+
+    // Sync optimistic/local view when PROP updates (server caught up)
     React.useEffect(() => {
-        if (!isRenaming) {
-            setNewName(list.name);
+        setOptimisticName(list.name);
+    }, [list.name]);
+
+    // Sync input field when entering rename mode
+    React.useEffect(() => {
+        if (isRenaming) {
+            setNewName(optimisticName);
         }
-    }, [list.name, isRenaming]);
+    }, [isRenaming, optimisticName]);
 
     const { onTouchStart, onTouchMove, onTouchEnd, touchDelta } = useSwipe(
         () => {
@@ -50,20 +58,39 @@ const ListCard: React.FC<ListCardProps> = ({
     );
 
     const handleRename = async () => {
-        if (!newName.trim() || newName === list.name || isSaving) {
+        const trimmed = newName.trim();
+        if (!trimmed || trimmed === optimisticName || isSaving) {
             setIsRenaming(false);
             return;
         }
 
         setIsSaving(true);
-        const success = await onRename(newName);
+        // Optimistically update UI immediately
+        const success = await onRename(trimmed);
+
         setIsSaving(false);
 
         if (success) {
+            setOptimisticName(trimmed); // UPDATE UI INSTANTLY
             setIsRenaming(false);
         } else {
             addToast("Kunne ikke endre navn", "error");
+            setNewName(optimisticName); // Revert input
         }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleRename();
+        }
+    };
+
+    // Completely disable swipe handlers when renaming to prevent conflicts
+    const swipeHandlers = isRenaming ? {} : {
+        onTouchStart: isOwner ? onTouchStart : undefined,
+        onTouchMove: isOwner ? onTouchMove : undefined,
+        onTouchEnd: isOwner ? onTouchEnd : undefined
     };
 
     return (
@@ -84,28 +111,37 @@ const ListCard: React.FC<ListCardProps> = ({
                     : 'bg-white border-slate-100 hover:border-indigo-100 shadow-sm text-slate-800'
                     }`}
                 style={{
-                    transform: isOwner && touchDelta > 0 ? `translateX(-${Math.min(touchDelta, 150)}px)` : 'translateX(0)',
+                    transform: isOwner && !isRenaming && touchDelta > 0 ? `translateX(-${Math.min(touchDelta, 150)}px)` : 'translateX(0)',
                 }}
-                onTouchStart={isOwner ? onTouchStart : undefined}
-                onTouchMove={isOwner ? onTouchMove : undefined}
-                onTouchEnd={isOwner ? onTouchEnd : undefined}
+                {...swipeHandlers}
             >
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0" onClick={() => !isRenaming && onSelect()}>
                         {isRenaming ? (
                             <input
                                 autoFocus
+                                type="text"
                                 className="w-full bg-white/20 border-none outline-none rounded-lg px-2 py-1 text-white font-bold placeholder:text-white/50"
                                 value={newName}
                                 onClick={(e) => e.stopPropagation()}
-                                onTouchStart={(e) => e.stopPropagation()} // Stop swipe interference
+                                onTouchStart={(e) => e.stopPropagation()}
                                 onChange={(e) => setNewName(e.target.value)}
                                 onBlur={handleRename}
-                                onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+                                onKeyDown={handleKeyDown}
                             />
                         ) : (
                             <div className="flex items-center gap-2">
-                                <h3 className="font-black text-lg truncate">{list.name}</h3>
+                                <h3
+                                    className={`font-black text-lg truncate ${isOwner ? 'cursor-pointer active:opacity-70' : ''}`}
+                                    onClick={(e) => {
+                                        if (isOwner) {
+                                            e.stopPropagation();
+                                            setIsRenaming(true);
+                                        }
+                                    }}
+                                >
+                                    {optimisticName}
+                                </h3>
                                 {list.isPrivate ? (
                                     <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black uppercase tracking-wider ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'}`}>Privat</span>
                                 ) : (

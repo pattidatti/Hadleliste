@@ -280,15 +280,22 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
                           className="w-7 h-7 flex items-center justify-center text-indigo-600 font-black hover:bg-white rounded-lg transition-colors"
                         >+</button>
                       </div>
-                      <div className="flex-1 relative">
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400 uppercase">kr</span>
-                        <input
-                          type="number"
-                          placeholder="0.00"
-                          value={item.price || ''}
-                          onChange={(e) => updateItem(item.id, { price: parseFloat(e.target.value) || 0 })}
-                          className="w-full pl-7 pr-3 py-1.5 bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        />
+                      <div className="flex-1 relative flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400 uppercase">kr</span>
+                          <input
+                            type="number"
+                            placeholder="0.00"
+                            value={item.price || ''}
+                            onChange={(e) => updateItem(item.id, { price: parseFloat(e.target.value) || 0 })}
+                            className="w-full pl-7 pr-3 py-1.5 bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                          />
+                        </div>
+                        {(item.price || 0) > 0 && item.quantity > 1 && (
+                          <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">
+                            = {(item.price * item.quantity).toFixed(0)},-
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
