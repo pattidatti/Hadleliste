@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ShoppingItem } from '../types';
 import { CATEGORIES } from '../constants/commonItems';
 import { useSwipe } from '../hooks/useSwipe';
+import { useCatalog } from '../hooks/useCatalog';
 
 interface StoreViewProps {
   items: ShoppingItem[];
@@ -32,8 +33,8 @@ const SwipeableItem = ({ item, onToggle, onDelete }: { item: ShoppingItem, onTog
         <div
           onClick={() => onToggle(item.id)}
           className={`w-6 h-6 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${item.isBought
-              ? 'bg-green-500 border-green-500 scale-105'
-              : 'border-slate-300 hover:border-indigo-400'
+            ? 'bg-green-500 border-green-500 scale-105'
+            : 'border-slate-300 hover:border-indigo-400'
             }`}
         >
           {item.isBought && <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
@@ -56,11 +57,20 @@ const SwipeableItem = ({ item, onToggle, onDelete }: { item: ShoppingItem, onTog
 
 const StoreView: React.FC<StoreViewProps> = ({ items, setItems }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const { addOrUpdateProduct } = useCatalog(); // Import from hook
 
   const toggleBought = (id: string) => {
-    setItems(items.map(item =>
-      item.id === id ? { ...item, isBought: !item.isBought } : item
-    ));
+    setItems(items.map(item => {
+      if (item.id === id) {
+        const newStatus = !item.isBought;
+        // If marking as bought, update global price intelligence
+        if (newStatus === true) {
+          addOrUpdateProduct(item.name, item.price, item.category);
+        }
+        return { ...item, isBought: newStatus };
+      }
+      return item;
+    }));
   };
 
   const deleteItem = (id: string) => {

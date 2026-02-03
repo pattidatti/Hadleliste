@@ -42,7 +42,7 @@ export const signIn = () => signInWithPopup(auth, googleProvider);
 export const logOut = () => signOut(auth);
 
 // Re-export Firebase functions for use in other files
-export { onAuthStateChanged, collection, doc, onSnapshot, updateDoc, addDoc, arrayUnion, arrayRemove, query, where, deleteDoc };
+export { onAuthStateChanged, collection, doc, onSnapshot, updateDoc, addDoc, arrayUnion, arrayRemove, query, where, deleteDoc, setDoc, getDocs };
 export type { User };
 
 export interface ListData {

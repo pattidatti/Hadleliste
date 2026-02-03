@@ -10,6 +10,16 @@ export interface ShoppingItem {
   createdAt: number;
 }
 
+export interface Product {
+  id: string; // normalized lowercase ID
+  name: string; // Display name
+  category: string;
+  price: number;
+  unit?: string;
+  lastUpdated: number;
+  count: number; // Popularity
+}
+
 export enum AppMode {
   LISTS = 'LISTS',
   PLANNING = 'PLANNING',

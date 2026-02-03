@@ -1,24 +1,16 @@
-
 import React, { useState, useRef } from 'react';
 import { ShoppingItem } from '../types';
 import { getSmartCategorization, parseReceiptPrices } from '../services/geminiService';
-import { CATEGORIES, CATALOG } from '../constants/commonItems';
+import { CATEGORIES } from '../constants/commonItems';
 import { useToast } from './Toast';
+import CatalogMigration from './CatalogMigration';
+import { useCatalog } from '../hooks/useCatalog';
+
 
 interface PlanningViewProps {
   items: ShoppingItem[];
   setItems: (items: ShoppingItem[]) => void;
 }
-
-const findCategoryLocally = (itemName: string): string | undefined => {
-  const normalizedName = itemName.toLowerCase();
-  for (const cat of CATALOG) {
-    if (cat.items.some(i => i.toLowerCase() === normalizedName)) {
-      return cat.name;
-    }
-  }
-  return undefined;
-};
 
 const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
   const [newItemName, setNewItemName] = useState('');
@@ -27,6 +19,9 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
   const [expandedCategories, setExpandedCategories] = useState<string[]>(["Basisvarer"]);
   const { addToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Hook for Global Catalog
+  const { products, getProduct, addOrUpdateProduct } = useCatalog();
 
   const addItem = async (name: string) => {
     const trimmedName = name.trim();
@@ -37,29 +32,35 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
       return;
     }
 
-    const localCategory = findCategoryLocally(trimmedName);
+    // 1. Check Global Catalog first (Fast Path)
+    const existingProduct = getProduct(trimmedName);
 
-    if (localCategory) {
-      // FAST PATH: Found in local catalog
+    if (existingProduct) {
       const newItem: ShoppingItem = {
         id: crypto.randomUUID(),
-        name: trimmedName,
+        name: existingProduct.name, // Use canonical name
         quantity: 1,
-        unit: 'stk',
-        price: 0,
-        category: localCategory,
+        unit: existingProduct.unit || 'stk',
+        price: existingProduct.price || 0,
+        category: existingProduct.category,
         isBought: false,
         createdAt: Date.now()
       };
 
       setItems([newItem, ...items]);
       setNewItemName('');
-      addToast(`La til ${trimmedName}`, 'success');
+      addToast(`La til ${existingProduct.name}`, 'success');
+
+      // Update popularity in background
+      addOrUpdateProduct(existingProduct.name);
     } else {
-      // SLOW PATH: Use AI
+      // 2. AI Fallback (Slow Path)
       setIsLoading(true);
       try {
         const category = await getSmartCategorization(trimmedName);
+
+        // Save to global catalog immediately for next time
+        await addOrUpdateProduct(trimmedName, 0, category);
 
         const newItem: ShoppingItem = {
           id: crypto.randomUUID(),
@@ -99,7 +100,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
         if (scannedResults.length > 0) {
           let updatedCount = 0;
           const newItems = items.map(item => {
-            // Simple matching: find if the scanned name contains our item name or vice versa
+            // Fuzzy matching
             const match = scannedResults.find(res =>
               res.name.toLowerCase().includes(item.name.toLowerCase()) ||
               item.name.toLowerCase().includes(res.name.toLowerCase())
@@ -107,12 +108,13 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
 
             if (match) {
               updatedCount++;
+              // Also update the Global Catalog with this new price!
+              addOrUpdateProduct(item.name, match.price);
               return { ...item, price: match.price };
             }
             return item;
           });
 
-          setItems(newItems);
           setItems(newItems);
           addToast(`Oppdaterte priser for ${updatedCount} varer fra kvitteringen.`, 'success');
         } else {
@@ -138,7 +140,16 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
   };
 
   const updateItem = (id: string, updates: Partial<ShoppingItem>) => {
-    setItems(items.map(item => item.id === id ? { ...item, ...updates } : item));
+    setItems(items.map(item => {
+      if (item.id === id) {
+        // If user manually updates price, sync to global catalog
+        if (updates.price !== undefined) {
+          addOrUpdateProduct(item.name, updates.price);
+        }
+        return { ...item, ...updates };
+      }
+      return item;
+    }));
   };
 
   const totalPrice = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
@@ -148,8 +159,20 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
     items: items.filter(i => i.category === cat)
   })).filter(group => group.items.length > 0);
 
+  // Group GLOBAL products for the catalog view
+  const catalogGrouped = CATEGORIES.map(cat => ({
+    name: cat,
+    items: products.filter(p => p.category === cat)
+  }));
+  // Add "Annet" for anything else
+  const otherItems = products.filter(p => !CATEGORIES.includes(p.category));
+  if (otherItems.length > 0) {
+    catalogGrouped.push({ name: 'Annet', items: otherItems });
+  }
+
   return (
     <div className="flex flex-col gap-8 pb-32">
+      <CatalogMigration />
 
       {/* Search & Add Bar */}
       <section className="w-full relative z-10">
@@ -281,50 +304,53 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
         <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide px-1">Katalog</h2>
 
         <div className="space-y-3">
-          {CATALOG.map(cat => (
-            <div key={cat.name} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-              <button
-                onClick={() => toggleCategory(cat.name)}
-                className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-slate-50 transition-colors"
-              >
-                <span className="text-sm font-bold text-slate-700">{cat.name}</span>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18" height="18"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                  strokeLinecap="round" strokeLinejoin="round"
-                  className={`text-slate-400 transition-transform duration-300 ${expandedCategories.includes(cat.name) ? 'rotate-180' : ''}`}
+          {catalogGrouped.map(cat => (
+            cat.items.length > 0 && (
+              <div key={cat.name} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <button
+                  onClick={() => toggleCategory(cat.name)}
+                  className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-slate-50 transition-colors"
                 >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
+                  <span className="text-sm font-bold text-slate-700">{cat.name} <span className="opacity-50 font-normal">({cat.items.length})</span></span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18" height="18"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round"
+                    className={`text-slate-400 transition-transform duration-300 ${expandedCategories.includes(cat.name) ? 'rotate-180' : ''}`}
+                  >
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
 
-              {expandedCategories.includes(cat.name) && (
-                <div className="px-4 pb-4 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-1">
-                  {cat.items.map(itemName => {
-                    const isAdded = items.some(i => i.name.toLowerCase() === itemName.toLowerCase());
-                    return (
-                      <button
-                        key={itemName}
-                        onClick={() => addItem(itemName)}
-                        disabled={isAdded || isLoading}
-                        className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 border ${isAdded
-                          ? 'bg-slate-50 border-slate-100 text-slate-300'
-                          : 'bg-indigo-50 border-indigo-100 text-indigo-700 active:scale-95 shadow-sm active:shadow-none'
-                          }`}
-                      >
-                        {isAdded ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
-                        )}
-                        {itemName}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                {expandedCategories.includes(cat.name) && (
+                  <div className="px-4 pb-4 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-1">
+                    {cat.items.map(product => {
+                      const isAdded = items.some(i => i.name.toLowerCase() === product.name.toLowerCase());
+                      return (
+                        <button
+                          key={product.id}
+                          onClick={() => addItem(product.name)}
+                          disabled={isAdded || isLoading}
+                          className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 border ${isAdded
+                            ? 'bg-slate-50 border-slate-100 text-slate-300'
+                            : 'bg-indigo-50 border-indigo-100 text-indigo-700 active:scale-95 shadow-sm active:shadow-none'
+                            }`}
+                        >
+                          {isAdded ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
+                          )}
+                          {product.name}
+                          {product.price > 0 && <span className="text-indigo-400 font-normal ml-0.5">{product.price},-</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )
           ))}
         </div>
       </section>
