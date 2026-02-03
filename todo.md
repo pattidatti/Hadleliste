@@ -2,3 +2,4 @@ Handlehistorikk, statistikk. La oss vise alt som kan være nyttig eller interess
 - På handle; Bør kanskje være en knapp for å "fullføre" at man er ferdig. Den gir alert hvis noe er glemt, og man kan velge å ignorere det. Det er gjerne best at dashboard oppdateres etter man har "fullført" en handel. 
 - Når vi har samlet inn litt data vil jeg også ha en funksjon som forhåndgenerer/autogen en handleliste basert på hva man pleier å kjøpe, og kanskje noe man kjøper annenhver mnd, som dopapir, tørkerull, søppelsekker osv. La oss lage noe intelligent her. Vi har gemini API hvis det trengs eller kan gjøre det bedre. 
 - FJerne oppdatere databasen av legacy som vi hadde tidligere. store gule knappen på "planlegg"
+- Mulighet for å bytte light/dark mode. 
