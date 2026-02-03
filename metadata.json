@@ -1,0 +1,7 @@
+{
+  "name": "Smart Handleliste",
+  "description": "En moderne og intelligent handleliste-app med planleggingsmodus og butikkmodus, optimalisert for mobil.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
