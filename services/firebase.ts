@@ -1,5 +1,4 @@
-
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { initializeApp } from "firebase/app";
 import {
   getAuth,
   GoogleAuthProvider,
@@ -7,7 +6,7 @@ import {
   signOut,
   onAuthStateChanged,
   User
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+} from "firebase/auth";
 import {
   getFirestore,
   collection,
@@ -19,8 +18,9 @@ import {
   where,
   addDoc,
   arrayUnion,
-  getDocs
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  getDocs,
+  deleteDoc
+} from "firebase/firestore";
 
 // Firebase config loaded from environment variables (set in GitHub Secrets)
 const firebaseConfig = {
@@ -40,12 +40,16 @@ export const googleProvider = new GoogleAuthProvider();
 export const signIn = () => signInWithPopup(auth, googleProvider);
 export const logOut = () => signOut(auth);
 
+// Re-export Firebase functions for use in other files
+export { onAuthStateChanged, collection, doc, onSnapshot, updateDoc, addDoc, arrayUnion, query, where, deleteDoc };
+export type { User };
+
 export interface ListData {
   id: string;
   name: string;
   ownerId: string;
   ownerEmail: string;
-  collaborators: string[]; // Array of emails
+  collaborators: string[];
   items: any[];
   updatedAt: number;
 }
