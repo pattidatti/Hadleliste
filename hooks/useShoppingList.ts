@@ -68,11 +68,11 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
 
         const userEmail = user.email.toLowerCase();
 
-        // Query lists where user is a collaborator, ordered by last update
+        // Query lists where user is a collaborator
         const q = query(
             collection(db, "lists"),
-            where("collaborators", "array-contains", userEmail),
-            orderBy("updatedAt", "desc")
+            where("collaborators", "array-contains", userEmail)
+            // orderBy removed to avoid requiring composite index and ensure instant subscription
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -81,7 +81,8 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
                     id: d.id,
                     ...d.data()
                 } as SharedList))
-                .filter(list => !list.deletedAt);
+                .filter(list => !list.deletedAt)
+                .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)); // Client-side sort
 
             setLists(fetchedLists);
 
