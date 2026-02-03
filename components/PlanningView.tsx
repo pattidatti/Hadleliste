@@ -10,6 +10,16 @@ interface PlanningViewProps {
   setItems: (items: ShoppingItem[]) => void;
 }
 
+const findCategoryLocally = (itemName: string): string | undefined => {
+  const normalizedName = itemName.toLowerCase();
+  for (const cat of CATALOG) {
+    if (cat.items.some(i => i.toLowerCase() === normalizedName)) {
+      return cat.name;
+    }
+  }
+  return undefined;
+};
+
 const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
   const [newItemName, setNewItemName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -19,27 +29,59 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addItem = async (name: string) => {
-    if (!name.trim() || isLoading) return;
+    const trimmedName = name.trim();
+    if (!trimmedName || isLoading) return;
 
-    if (items.some(i => i.name.toLowerCase() === name.toLowerCase())) return;
+    if (items.some(i => i.name.toLowerCase() === trimmedName.toLowerCase())) {
+      addToast(`${trimmedName} er allerede i listen`, 'info');
+      return;
+    }
 
-    setIsLoading(true);
-    const category = await getSmartCategorization(name);
+    const localCategory = findCategoryLocally(trimmedName);
 
-    const newItem: ShoppingItem = {
-      id: crypto.randomUUID(),
-      name: name.trim(),
-      quantity: 1,
-      unit: 'stk',
-      price: 0,
-      category,
-      isBought: false,
-      createdAt: Date.now()
-    };
+    if (localCategory) {
+      // FAST PATH: Found in local catalog
+      const newItem: ShoppingItem = {
+        id: crypto.randomUUID(),
+        name: trimmedName,
+        quantity: 1,
+        unit: 'stk',
+        price: 0,
+        category: localCategory,
+        isBought: false,
+        createdAt: Date.now()
+      };
 
-    setItems([newItem, ...items]);
-    setNewItemName('');
-    setIsLoading(false);
+      setItems([newItem, ...items]);
+      setNewItemName('');
+      addToast(`La til ${trimmedName}`, 'success');
+    } else {
+      // SLOW PATH: Use AI
+      setIsLoading(true);
+      try {
+        const category = await getSmartCategorization(trimmedName);
+
+        const newItem: ShoppingItem = {
+          id: crypto.randomUUID(),
+          name: trimmedName,
+          quantity: 1,
+          unit: 'stk',
+          price: 0,
+          category,
+          isBought: false,
+          createdAt: Date.now()
+        };
+
+        setItems([newItem, ...items]);
+        setNewItemName('');
+        addToast(`La til ${trimmedName}`, 'success');
+      } catch (error) {
+        console.error(error);
+        addToast("Feil ved kategorisering", 'error');
+      } finally {
+        setIsLoading(false);
+      }
+    }
   };
 
   const handleScanReceipt = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,7 +149,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
   })).filter(group => group.items.length > 0);
 
   return (
-    <div className="space-y-8 pb-32 animate-in fade-in slide-in-from-bottom-2">
+    <div className="space-y-5 pb-32 animate-in fade-in slide-in-from-bottom-2">
 
       {/* Scanner Overlay */}
       {isScanning && (
@@ -135,7 +177,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
       )}
 
       {/* Search & Add Bar */}
-      <div className="sticky top-[148px] z-10 -mx-4 px-4 py-2 bg-slate-50/90 backdrop-blur-sm">
+      <div className="-mx-4 px-4">
         <div className="flex gap-2">
           <form onSubmit={(e) => { e.preventDefault(); addItem(newItemName); }} className="relative flex-1">
             <input
@@ -184,7 +226,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
         </div>
 
         {items.length === 0 ? (
-          <div className="py-12 text-center bg-white/50 rounded-3xl border border-dashed border-slate-200">
+          <div className="py-6 text-center bg-white/50 rounded-3xl border border-dashed border-slate-200">
             <p className="text-slate-400 text-sm font-medium">Ingen varer valgt ennå.<br />Velg fra katalogen under.</p>
           </div>
         ) : (
