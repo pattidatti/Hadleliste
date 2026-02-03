@@ -3,6 +3,7 @@ import React, { useState, useRef } from 'react';
 import { ShoppingItem } from '../types';
 import { getSmartCategorization, parseReceiptPrices } from '../services/geminiService';
 import { CATEGORIES, CATALOG } from '../constants/commonItems';
+import { useToast } from './Toast';
 
 interface PlanningViewProps {
   items: ShoppingItem[];
@@ -14,6 +15,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>(["Basisvarer"]);
+  const { addToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addItem = async (name: string) => {
@@ -69,9 +71,10 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
           });
 
           setItems(newItems);
-          alert(`Oppdaterte priser for ${updatedCount} varer fra kvitteringen.`);
+          setItems(newItems);
+          addToast(`Oppdaterte priser for ${updatedCount} varer fra kvitteringen.`, 'success');
         } else {
-          alert("Klarte ikke å lese priser fra kvitteringen. Prøv et tydeligere bilde.");
+          addToast("Klarte ikke å lese priser fra kvitteringen. Prøv et tydeligere bilde.", 'error');
         }
         setIsScanning(false);
       };
@@ -264,8 +267,8 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, setItems }) => {
                         onClick={() => addItem(itemName)}
                         disabled={isAdded || isLoading}
                         className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 border ${isAdded
-                            ? 'bg-slate-50 border-slate-100 text-slate-300'
-                            : 'bg-indigo-50 border-indigo-100 text-indigo-700 active:scale-95 shadow-sm active:shadow-none'
+                          ? 'bg-slate-50 border-slate-100 text-slate-300'
+                          : 'bg-indigo-50 border-indigo-100 text-indigo-700 active:scale-95 shadow-sm active:shadow-none'
                           }`}
                       >
                         {isAdded ? (

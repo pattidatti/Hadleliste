@@ -1,4 +1,6 @@
+
 import React, { useState } from 'react';
+import { useToast } from './Toast';
 
 interface ShareModalProps {
     isOpen: boolean;
@@ -9,6 +11,7 @@ interface ShareModalProps {
 const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onShare }) => {
     const [email, setEmail] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { addToast } = useToast();
 
     if (!isOpen) return null;
 
@@ -20,11 +23,11 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onShare }) => 
         setIsSubmitting(false);
 
         if (success) {
-            alert(`${email} er lagt til i listen!`);
+            addToast(`${email} er lagt til!`, 'success');
             setEmail('');
             onClose();
         } else {
-            alert("Kunne ikke legge til person. Sjekk tilgangen din.");
+            addToast("Kunne ikke legge til person. Sjekk tilgangen din.", 'error');
         }
     };
 
