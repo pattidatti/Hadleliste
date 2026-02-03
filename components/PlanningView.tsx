@@ -135,6 +135,35 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
   // Hook for Global Catalog
   const { products, getProduct, addOrUpdateProduct } = useCatalog();
 
+  // Drag and Drop Sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = items.findIndex(i => i.id === active.id);
+      const newIndex = items.findIndex(i => i.id === over.id);
+      const newOrder = arrayMove(items, oldIndex, newIndex);
+      reorderItems(newOrder.map(i => i.id));
+      haptics.impact();
+    }
+  };
+
   const addItem = async (name: string) => {
     const trimmedName = name.trim();
     if (!trimmedName || isLoading) return;
@@ -291,36 +320,6 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
   const suggestions = newItemName.length >= 2 ? products
     .filter(p => !p.deleted && p.name.toLowerCase().includes(newItemName.toLowerCase()))
     .slice(0, 5) : [];
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 200,
-        tolerance: 5,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      const oldIndex = items.findIndex((i) => i.id === active.id);
-      const newIndex = items.findIndex((i) => i.id === over.id);
-
-      const reorderedItems = arrayMove(items, oldIndex, newIndex);
-      reorderItems(reorderedItems.map(i => i.id));
-      haptics.impact();
-    }
-  };
 
   return (
     <div className="flex flex-col gap-8 pb-32">
