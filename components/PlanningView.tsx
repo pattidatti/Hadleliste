@@ -19,6 +19,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
   const [isLoading, setIsLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>(["Basisvarer"]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const { addToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -178,6 +179,10 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
     catalogGrouped.push({ name: 'Annet', items: otherItems });
   }
 
+  const suggestions = newItemName.length >= 2 ? products
+    .filter(p => !p.deleted && p.name.toLowerCase().includes(newItemName.toLowerCase()))
+    .slice(0, 5) : [];
+
   return (
     <div className="flex flex-col gap-8 pb-32">
       <CatalogMigration />
@@ -185,11 +190,19 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
       {/* Search & Add Bar */}
       <section className="w-full relative z-10">
         <div className="flex gap-2">
-          <form onSubmit={(e) => { e.preventDefault(); addItem(newItemName); }} className="relative flex-1">
+          <form onSubmit={(e) => { e.preventDefault(); addItem(newItemName); setShowSuggestions(false); }} className="relative flex-1">
             <input
               type="text"
               value={newItemName}
-              onChange={(e) => setNewItemName(e.target.value)}
+              onChange={(e) => {
+                setNewItemName(e.target.value);
+                setShowSuggestions(true);
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => {
+                // Delay hiding suggestions to allow for clicks
+                setTimeout(() => setShowSuggestions(false), 200);
+              }}
               placeholder="Søk eller legg til ny vare..."
               className="w-full pl-4 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl shadow-sm focus:ring-2 focus:ring-indigo-500 transition-all outline-none text-sm font-medium"
             />
@@ -204,6 +217,38 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
               )}
             </button>
+
+            {/* Floating Suggestions Dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute left-0 right-0 top-full mt-2 bg-white/80 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="py-1">
+                  {suggestions.map(product => (
+                    <button
+                      key={product.id}
+                      type="button"
+                      onClick={() => {
+                        addItem(product.name);
+                        setShowSuggestions(false);
+                      }}
+                      className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 flex items-center justify-center bg-indigo-50 rounded-xl text-indigo-600">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-800">{product.name}</p>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{product.category}</p>
+                        </div>
+                      </div>
+                      {product.price > 0 && (
+                        <span className="text-xs font-black text-indigo-500">{product.price},-</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </form>
 
           <button
