@@ -35,7 +35,7 @@ const CatalogMigration: React.FC = () => {
         alert("Migrering ferdig!");
     };
 
-    if (products.length > 100) {
+    if (products.length > 10) {
         return null; // Hide automatically if we have data
     }
 
