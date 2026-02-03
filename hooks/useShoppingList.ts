@@ -95,7 +95,8 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
             ownerEmail: user.email,
             collaborators: [user.email],
             items: [],
-            updatedAt: Date.now()
+            updatedAt: Date.now(),
+            isPrivate: true
         };
 
         const docRef = await addDoc(collection(db, "lists"), newList);
@@ -116,7 +117,8 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
 
         try {
             await updateDoc(doc(db, "lists", currentListId), {
-                collaborators: arrayUnion(email.trim().toLowerCase())
+                collaborators: arrayUnion(email.trim().toLowerCase()),
+                isPrivate: false
             });
             return true;
         } catch (e) {

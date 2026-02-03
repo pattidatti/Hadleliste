@@ -12,6 +12,7 @@ interface ListCardProps {
     onDelete: () => Promise<boolean>;
     onToggleVisibility: () => Promise<boolean>;
     onLeave: () => Promise<boolean>;
+    onShare: () => void;
 }
 
 const ListCard: React.FC<ListCardProps> = ({
@@ -22,12 +23,14 @@ const ListCard: React.FC<ListCardProps> = ({
     onRename,
     onDelete,
     onToggleVisibility,
-    onLeave
+    onLeave,
+    onShare
 }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isRenaming, setIsRenaming] = useState(false);
     const [newName, setNewName] = useState(list.name);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const { addToast } = useToast();
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
@@ -40,16 +43,24 @@ const ListCard: React.FC<ListCardProps> = ({
     );
 
     const handleRename = async () => {
-        if (newName.trim() && newName !== list.name) {
-            const success = await onRename(newName);
-            if (success) setIsRenaming(false);
-        } else {
+        if (!newName.trim() || newName === list.name || isSaving) {
             setIsRenaming(false);
+            return;
+        }
+
+        setIsSaving(true);
+        const success = await onRename(newName);
+        setIsSaving(false);
+
+        if (success) {
+            setIsRenaming(false);
+        } else {
+            addToast("Kunne ikke endre navn", "error");
         }
     };
 
     return (
-        <div className="relative group select-none">
+        <div className={`relative group select-none ${isMenuOpen ? 'z-50' : 'z-0'}`}>
             {/* Swipe Background (Delete Action) - Only for owner */}
             {isOwner && (
                 <div className="absolute inset-0 bg-red-600 rounded-3xl flex items-center justify-end pr-6 transition-all">
@@ -123,20 +134,34 @@ const ListCard: React.FC<ListCardProps> = ({
                                         Gi nytt navn
                                     </button>
 
+
+
+                                    <div className="h-px bg-slate-100 my-1 mx-2" />
+
                                     {isOwner ? (
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); onToggleVisibility(); setIsMenuOpen(false); }}
+                                            onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); onShare(); }}
                                             className="w-full px-4 py-2.5 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                                {list.isPrivate
-                                                    ? <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>
-                                                    : <><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>
-                                                }
-                                            </svg>
-                                            {list.isPrivate ? "Gjør delt" : "Gjør privat"}
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" x2="12" y1="2" y2="15" /></svg>
+                                            Del med andre
                                         </button>
                                     ) : null}
+
+                                    {/* Collaborators List */}
+                                    {list.collaborators.length > 1 && (
+                                        <div className="px-4 py-2 border-t border-slate-100">
+                                            <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Delt med:</p>
+                                            <div className="space-y-1">
+                                                {list.collaborators.filter(email => email !== list.ownerEmail).map(email => (
+                                                    <div key={email} className="text-xs text-slate-600 truncate flex items-center gap-1.5">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-400"></div>
+                                                        {email}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
 
                                     <div className="h-px bg-slate-100 my-1 mx-2" />
 

@@ -13,6 +13,7 @@ interface ListsViewProps {
     onLeaveList: (id: string) => Promise<boolean>;
     isOwner: (id: string) => boolean;
     userEmail: string;
+    onShareList: (id: string) => void;
 }
 
 const ListsView: React.FC<ListsViewProps> = ({
@@ -25,7 +26,8 @@ const ListsView: React.FC<ListsViewProps> = ({
     onToggleVisibility,
     onLeaveList,
     isOwner,
-    userEmail
+    userEmail,
+    onShareList
 }) => {
     const [newListName, setNewListName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
@@ -94,6 +96,7 @@ const ListsView: React.FC<ListsViewProps> = ({
                                     onDelete={() => onDeleteList(list.id)}
                                     onToggleVisibility={() => onToggleVisibility(list.id)}
                                     onLeave={() => onLeaveList(list.id)}
+                                    onShare={() => onShareList(list.id)}
                                 />
                             ))}
                         </div>

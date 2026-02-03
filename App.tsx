@@ -32,12 +32,8 @@ const App: React.FC = () => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isListsSheetOpen, setIsListsSheetOpen] = useState(false);
 
-  // Auto-create first list for new users
-  useEffect(() => {
-    if (user && lists.length === 0 && !currentListId) {
-      createList("Min Handleliste");
-    }
-  }, [user, lists.length, currentListId, createList]);
+  // Auto-create logic removed to prevent "zombie lists" on delete.
+  // Users can create lists manually in the ListsView.
 
   if (loading) return <LoadingSpinner />;
   if (!user) return <LoginScreen onSignIn={signIn} />;
@@ -100,6 +96,10 @@ const App: React.FC = () => {
             onLeaveList={leaveList}
             isOwner={isOwner}
             userEmail={user?.email || ''}
+            onShareList={(id) => {
+              setCurrentListId(id);
+              setIsShareModalOpen(true);
+            }}
           />
         )}
 
