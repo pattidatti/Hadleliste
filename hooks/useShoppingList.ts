@@ -51,10 +51,12 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const fetchedLists = snapshot.docs.map(d => ({
-                id: d.id,
-                ...d.data()
-            } as SharedList));
+            const fetchedLists = snapshot.docs
+                .map(d => ({
+                    id: d.id,
+                    ...d.data()
+                } as SharedList))
+                .filter(list => !list.deletedAt);
             setLists(fetchedLists);
 
             // Auto-select first list or create new one
@@ -139,7 +141,12 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
 
     const deleteList = useCallback(async (id: string): Promise<boolean> => {
         try {
-            await deleteDoc(doc(db, "lists", id));
+            // Soft delete: Mark as deleted instead of removing document
+            await updateDoc(doc(db, "lists", id), {
+                deletedAt: Date.now(),
+                updatedAt: Date.now()
+            });
+
             if (currentListId === id) {
                 setCurrentListId(null);
             }

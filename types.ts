@@ -42,4 +42,5 @@ export interface SharedList {
   collaborators: string[];
   updatedAt: number;
   isPrivate?: boolean;
+  deletedAt?: number;
 }

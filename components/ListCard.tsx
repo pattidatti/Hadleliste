@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SharedList } from '../types';
 import { useSwipe } from '../hooks/useSwipe';
+import { useToast } from './Toast';
 
 interface ListCardProps {
     list: SharedList;
@@ -26,6 +27,8 @@ const ListCard: React.FC<ListCardProps> = ({
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isRenaming, setIsRenaming] = useState(false);
     const [newName, setNewName] = useState(list.name);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const { addToast } = useToast();
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
     const { onTouchStart, onTouchMove, onTouchEnd, touchDelta } = useSwipe(
@@ -166,12 +169,29 @@ const ListCard: React.FC<ListCardProps> = ({
                     <p className="font-bold text-white mb-4 text-center">Slett "{list.name}" permanent?</p>
                     <div className="flex gap-2 w-full">
                         <button
-                            onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                            className="flex-1 bg-white text-red-600 py-2 rounded-xl font-black text-xs uppercase shadow-lg hover:bg-slate-100"
-                        >Ja, slett</button>
+                            onClick={async (e) => {
+                                e.stopPropagation();
+                                setIsDeleting(true);
+                                const success = await onDelete();
+                                setIsDeleting(false);
+
+                                if (success) {
+                                    setIsConfirmingDelete(false);
+                                    addToast(`"${list.name}" ble lagt i papirkurven`, 'success');
+                                } else {
+                                    addToast('Kunne ikke slette liste', 'error');
+                                    setIsConfirmingDelete(false);
+                                }
+                            }}
+                            disabled={isDeleting}
+                            className="flex-1 bg-white text-red-600 py-2 rounded-xl font-black text-xs uppercase shadow-lg hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
+                        >
+                            {isDeleting ? 'Sletter...' : 'Ja, slett'}
+                        </button>
                         <button
                             onClick={(e) => { e.stopPropagation(); setIsConfirmingDelete(false); }}
-                            className="flex-1 bg-red-700 text-white py-2 rounded-xl font-black text-xs uppercase shadow-lg hover:bg-red-800"
+                            disabled={isDeleting}
+                            className="flex-1 bg-red-700 text-white py-2 rounded-xl font-black text-xs uppercase shadow-lg hover:bg-red-800 disabled:opacity-50"
                         >Avbryt</button>
                     </div>
                 </div>
