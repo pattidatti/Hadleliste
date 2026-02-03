@@ -15,7 +15,8 @@ import {
     orderBy,
     serverTimestamp,
     setDoc,
-    or
+    or,
+    writeBatch
 } from '../services/firebase';
 import type { User } from '../services/firebase';
 
@@ -32,6 +33,7 @@ export interface UseShoppingListReturn {
     currentListName: string;
     renameList: (id: string, newName: string) => Promise<boolean>;
     deleteList: (id: string) => Promise<boolean>;
+    deleteLists: (ids: string[]) => Promise<boolean>;
     toggleListVisibility: (id: string) => Promise<boolean>;
     removeCollaborator: (listId: string, email: string) => Promise<boolean>;
     leaveList: (id: string) => Promise<boolean>;
@@ -283,6 +285,32 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         }
     }, [currentListId]);
 
+    const deleteLists = useCallback(async (ids: string[]): Promise<boolean> => {
+        if (ids.length === 0) return true;
+        try {
+            const batch = writeBatch(db);
+            const now = serverTimestamp();
+
+            ids.forEach(id => {
+                const docRef = doc(db, "lists", id);
+                batch.update(docRef, {
+                    deletedAt: now,
+                    updatedAt: now
+                });
+            });
+
+            await batch.commit();
+
+            if (currentListId && ids.includes(currentListId)) {
+                localStorage.removeItem(STORAGE_KEY);
+            }
+            return true;
+        } catch (e) {
+            console.error("Failed to delete lists:", e);
+            return false;
+        }
+    }, [currentListId]);
+
     const toggleListVisibility = useCallback(async (id: string): Promise<boolean> => {
         const list = lists.find(l => l.id === id);
         if (!list) return false;
@@ -352,6 +380,7 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         currentListName,
         renameList,
         deleteList,
+        deleteLists,
         toggleListVisibility,
         removeCollaborator,
         leaveList,

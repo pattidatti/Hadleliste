@@ -13,6 +13,8 @@ interface ListCardProps {
     onToggleVisibility: () => Promise<boolean>;
     onLeave: () => Promise<boolean>;
     onShare: () => void;
+    isEditMode?: boolean;
+    isSelected?: boolean;
 }
 
 const ListCard: React.FC<ListCardProps> = ({
@@ -24,7 +26,9 @@ const ListCard: React.FC<ListCardProps> = ({
     onDelete,
     onToggleVisibility,
     onLeave,
-    onShare
+    onShare,
+    isEditMode = false,
+    isSelected = false
 }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isRenaming, setIsRenaming] = useState(false);
@@ -109,7 +113,7 @@ const ListCard: React.FC<ListCardProps> = ({
                 className={`relative p-4 rounded-3xl border transition-all duration-300 ${isActive
                     ? 'bg-indigo-600 border-indigo-500 shadow-xl shadow-indigo-200 text-white'
                     : 'bg-white border-slate-100 hover:border-indigo-100 shadow-sm text-slate-800'
-                    }`}
+                    } ${isSelected ? 'ring-4 ring-red-500 border-red-500 bg-red-50' : ''}`}
                 style={{
                     transform: isOwner && !isRenaming && touchDelta > 0 ? `translateX(-${Math.min(touchDelta, 150)}px)` : 'translateX(0)',
                 }}
@@ -130,23 +134,33 @@ const ListCard: React.FC<ListCardProps> = ({
                                 onKeyDown={handleKeyDown}
                             />
                         ) : (
-                            <div className="flex items-center gap-2">
-                                <h3
-                                    className={`font-black text-lg truncate ${isOwner ? 'cursor-pointer active:opacity-70' : ''}`}
-                                    onClick={(e) => {
-                                        if (isOwner) {
-                                            e.stopPropagation();
-                                            setIsRenaming(true);
-                                        }
-                                    }}
-                                >
-                                    {optimisticName}
-                                </h3>
-                                {list.isPrivate ? (
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black uppercase tracking-wider ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'}`}>Privat</span>
-                                ) : (
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black uppercase tracking-wider ${isActive ? 'bg-white/20 text-white' : 'bg-indigo-50 text-indigo-400'}`}>Delt</span>
+                            <div className="flex items-center gap-3">
+                                {isEditMode && (
+                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-red-600 border-red-600' : 'bg-white border-slate-200'
+                                        }`}>
+                                        {isSelected && (
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                        )}
+                                    </div>
                                 )}
+                                <div>
+                                    <h3
+                                        className={`font-black text-lg truncate ${isOwner && !isEditMode ? 'cursor-pointer active:opacity-70' : ''}`}
+                                        onClick={(e) => {
+                                            if (isOwner && !isEditMode) {
+                                                e.stopPropagation();
+                                                setIsRenaming(true);
+                                            }
+                                        }}
+                                    >
+                                        {optimisticName}
+                                    </h3>
+                                    {list.isPrivate ? (
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black uppercase tracking-wider ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'}`}>Privat</span>
+                                    ) : (
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black uppercase tracking-wider ${isActive ? 'bg-white/20 text-white' : 'bg-indigo-50 text-indigo-400'}`}>Delt</span>
+                                    )}
+                                </div>
                             </div>
                         )}
                         <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 opacity-60 ${isActive ? 'text-white' : 'text-slate-400'}`}>

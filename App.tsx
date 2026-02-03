@@ -25,6 +25,7 @@ const App: React.FC = () => {
     currentListName,
     renameList,
     deleteList,
+    deleteLists,
     toggleListVisibility,
     removeCollaborator,
     leaveList,
@@ -102,6 +103,7 @@ const App: React.FC = () => {
             onCreateList={createList}
             onRenameList={renameList}
             onDeleteList={deleteList}
+            onDeleteLists={deleteLists}
             onToggleVisibility={toggleListVisibility}
             onLeaveList={leaveList}
             isOwner={isOwner}

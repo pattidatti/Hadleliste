@@ -9,6 +9,7 @@ interface ListsViewProps {
     onCreateList: (name: string) => Promise<void>;
     onRenameList: (id: string, name: string) => Promise<boolean>;
     onDeleteList: (id: string) => Promise<boolean>;
+    onDeleteLists: (ids: string[]) => Promise<boolean>;
     onToggleVisibility: (id: string) => Promise<boolean>;
     onLeaveList: (id: string) => Promise<boolean>;
     isOwner: (id: string) => boolean;
@@ -27,10 +28,14 @@ const ListsView: React.FC<ListsViewProps> = ({
     onLeaveList,
     isOwner,
     userEmail,
-    onShareList
+    onShareList,
+    onDeleteLists
 }) => {
     const [newListName, setNewListName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [isDeletingBulk, setIsDeletingBulk] = useState(false);
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -42,12 +47,57 @@ const ListsView: React.FC<ListsViewProps> = ({
         setIsCreating(false);
     };
 
+    const toggleSelection = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedIds.size === 0 || isDeletingBulk) return;
+        if (!window.confirm(`Slette ${selectedIds.size} lister permanent?`)) return;
+
+        setIsDeletingBulk(true);
+        const success = await onDeleteLists(Array.from(selectedIds));
+        setIsDeletingBulk(false);
+
+        if (success) {
+            setSelectedIds(new Set());
+            setIsEditMode(false);
+        }
+    };
+
+    const handleSelectAll = () => {
+        if (selectedIds.size === lists.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(lists.map(l => l.id)));
+        }
+    };
+
     return (
         <div className="flex flex-col h-full bg-slate-50">
             {/* Header */}
-            <header className="bg-white px-6 py-8 border-b border-slate-100">
-                <h2 className="text-2xl font-black text-slate-900">Mine Lister</h2>
-                <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">Administrer dine handlelister</p>
+            <header className="bg-white px-6 py-6 border-b border-slate-100 flex justify-between items-center sticky top-0 z-10">
+                <div>
+                    <h2 className="text-2xl font-black text-slate-900">Mine Lister</h2>
+                    <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">
+                        {isEditMode ? `${selectedIds.size} valgt` : 'Administrer dine handlelister'}
+                    </p>
+                </div>
+                <button
+                    onClick={() => {
+                        setIsEditMode(!isEditMode);
+                        if (isEditMode) setSelectedIds(new Set());
+                    }}
+                    className={`px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${isEditMode ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                        }`}
+                >
+                    {isEditMode ? 'Ferdig' : 'Rediger'}
+                </button>
             </header>
 
             {/* Content */}
@@ -84,24 +134,51 @@ const ListsView: React.FC<ListsViewProps> = ({
                         </div>
                     ) : (
                         <div className="grid gap-4">
-                            {[...lists].sort((a, b) => b.updatedAt - a.updatedAt).map(list => (
+                            {[...lists].sort((a, b) => {
+                                const timeA = (a.updatedAt as any)?.toMillis?.() || a.updatedAt || 0;
+                                const timeB = (b.updatedAt as any)?.toMillis?.() || b.updatedAt || 0;
+                                return timeB - timeA;
+                            }).map(list => (
                                 <ListCard
                                     key={list.id}
                                     list={list}
                                     isActive={list.id === currentListId}
                                     isOwner={isOwner(list.id)}
-                                    // Modified: Just select, don't close (not a modal anymore)
-                                    onSelect={() => onSelectList(list.id)}
+                                    // In edit mode, click card to toggle selection
+                                    onSelect={() => isEditMode ? toggleSelection(list.id) : onSelectList(list.id)}
                                     onRename={(name) => onRenameList(list.id, name)}
                                     onDelete={() => onDeleteList(list.id)}
                                     onToggleVisibility={() => onToggleVisibility(list.id)}
                                     onLeave={() => onLeaveList(list.id)}
                                     onShare={() => onShareList(list.id)}
+                                    isEditMode={isEditMode}
+                                    isSelected={selectedIds.has(list.id)}
                                 />
                             ))}
                         </div>
                     )}
                 </section>
+
+                {/* Bulk Actions Bar */}
+                {isEditMode && lists.length > 0 && (
+                    <div className="fixed bottom-24 left-4 right-4 animate-in slide-in-from-bottom-8 duration-300">
+                        <div className="bg-white/80 backdrop-blur-xl border border-slate-200 p-2 rounded-[2rem] shadow-2xl flex gap-2">
+                            <button
+                                onClick={handleSelectAll}
+                                className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all"
+                            >
+                                {selectedIds.size === lists.length ? 'Velg ingen' : 'Velg alle'}
+                            </button>
+                            <button
+                                onClick={handleBulkDelete}
+                                disabled={selectedIds.size === 0 || isDeletingBulk}
+                                className="flex-1 bg-red-600 text-white py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-red-200 active:scale-95 transition-all disabled:opacity-50"
+                            >
+                                {isDeletingBulk ? 'Sletter...' : `Slett ${selectedIds.size || ''}`}
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* User Info Footer */}
                 <div className="text-center pt-8 border-t border-slate-100">
