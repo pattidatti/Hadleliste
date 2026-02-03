@@ -151,17 +151,18 @@ const ProductsView: React.FC = () => {
                                             <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                                                 <div className="relative group/input">
                                                     <input
-                                                        type="number"
+                                                        type="text"
                                                         inputMode="decimal"
-                                                        step="0.1"
                                                         defaultValue={product.price || ''}
                                                         placeholder="0.00"
+                                                        onFocus={(e) => e.target.select()}
                                                         onBlur={(e) => {
-                                                            const val = e.target.value.replace(',', '.');
+                                                            const val = e.target.value.replace(',', '.').replace(/[^\d.]/g, '');
                                                             const newPrice = parseFloat(val);
                                                             if (!isNaN(newPrice) && newPrice !== product.price) {
                                                                 updateProduct(product.id, { price: newPrice });
                                                                 addToast(`${product.name} oppdatert`, "success");
+                                                                e.target.value = newPrice.toString(); // Sync back sanitized value
                                                             }
                                                         }}
                                                         onKeyDown={(e) => {

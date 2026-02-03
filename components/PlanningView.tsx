@@ -335,13 +335,20 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
                       </div>
                       <div className="flex-1 relative flex items-center gap-2">
                         <div className="relative flex-1">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400 uppercase">kr</span>
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400 uppercase group-focus-within/price:text-indigo-500 transition-colors">kr</span>
                           <input
-                            type="number"
+                            type="text"
+                            inputMode="decimal"
                             placeholder="0.00"
                             value={item.price || ''}
-                            onChange={(e) => updateItem(item.id, { price: parseFloat(e.target.value) || 0 })}
-                            className="w-full pl-7 pr-3 py-1.5 bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(',', '.').replace(/[^\d.]/g, '');
+                              // Prevent multiple dots
+                              if ((val.match(/\./g) || []).length > 1) return;
+                              updateItem(item.id, { price: parseFloat(val) || 0 });
+                            }}
+                            className="w-full pl-7 pr-3 py-1.5 bg-slate-50 border-2 border-transparent focus:border-indigo-500/30 focus:bg-white rounded-xl text-xs font-bold text-slate-700 outline-none transition-all duration-200"
                           />
                         </div>
                         {(item.price || 0) > 0 && (
