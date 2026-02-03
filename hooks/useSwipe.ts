@@ -1,9 +1,11 @@
-import { useRef, TouchEvent, useState } from 'react';
+import { useRef, TouchEvent, useState, useEffect } from 'react';
+import { haptics } from '../services/haptics';
 
 export const useSwipe = (onSwipeLeft: () => void, onSwipeRight?: () => void, threshold = 75) => {
     const startX = useRef<number | null>(null);
     const startY = useRef<number | null>(null);
     const [touchDelta, setTouchDelta] = useState(0);
+    const thresholdReached = useRef(false);
 
     const onTouchStart = (e: TouchEvent) => {
         startX.current = e.touches[0].clientX;
@@ -18,6 +20,14 @@ export const useSwipe = (onSwipeLeft: () => void, onSwipeRight?: () => void, thr
         // Only track horizontal swipes
         if (Math.abs(diff) > 5) {
             setTouchDelta(diff);
+
+            // Trigger haptic once when threshold is reached
+            if (Math.abs(diff) > threshold && !thresholdReached.current) {
+                haptics.impact();
+                thresholdReached.current = true;
+            } else if (Math.abs(diff) <= threshold) {
+                thresholdReached.current = false;
+            }
         }
     };
 
@@ -42,6 +52,7 @@ export const useSwipe = (onSwipeLeft: () => void, onSwipeRight?: () => void, thr
         startX.current = null;
         startY.current = null;
         setTouchDelta(0);
+        thresholdReached.current = false;
     };
 
     return { onTouchStart, onTouchMove, onTouchEnd, touchDelta };

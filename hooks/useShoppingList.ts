@@ -38,8 +38,9 @@ export interface UseShoppingListReturn {
     removeCollaborator: (listId: string, email: string) => Promise<boolean>;
     leaveList: (id: string) => Promise<boolean>;
     isOwner: (listId: string) => boolean;
-    addItem: (item: Omit<ShoppingItem, 'id' | 'createdAt'>) => Promise<void>;
+    addItem: (item: Omit<ShoppingItem, 'id' | 'createdAt' | 'sortOrder'>) => Promise<void>;
     updateItem: (id: string, updates: Partial<ShoppingItem>) => Promise<void>;
+    reorderItems: (orderedIds: string[]) => Promise<void>;
     removeItem: (id: string) => Promise<void>;
     resetBoughtItems: () => Promise<boolean>;
 }
@@ -130,8 +131,13 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
                 ...d.data()
             } as ShoppingItem));
 
-            // Client-side sort by createdAt descending
-            setItems(fetchedItems.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
+            // Client-side sort by sortOrder ascending, then createdAt descending
+            setItems(fetchedItems.sort((a, b) => {
+                if ((a.sortOrder || 0) !== (b.sortOrder || 0)) {
+                    return (a.sortOrder || 0) - (b.sortOrder || 0);
+                }
+                return (b.createdAt || 0) - (a.createdAt || 0);
+            }));
             setCurrentListItemsFetched(true);
         }, (error) => {
             console.error("Error fetching list items:", error);
@@ -191,13 +197,19 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         }
     }, [user]);
 
-    const addItem = useCallback(async (item: Omit<ShoppingItem, 'id' | 'createdAt'>) => {
+    const addItem = useCallback(async (item: Omit<ShoppingItem, 'id' | 'createdAt' | 'sortOrder'>) => {
         if (!currentListId) return;
         const id = crypto.randomUUID();
+        // Calculate next sortOrder
+        const maxSortOrder = items.length > 0
+            ? Math.max(...items.map(i => i.sortOrder || 0))
+            : 0;
+
         await setDoc(doc(db, "lists", currentListId, "items", id), {
             ...item,
             id,
-            createdAt: Date.now() // Local time for initial sort, will be stable
+            createdAt: Date.now(),
+            sortOrder: maxSortOrder + 1
         });
 
         // Update parent updatedAt
@@ -214,6 +226,22 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         await updateDoc(doc(db, "lists", currentListId), {
             updatedAt: serverTimestamp()
         });
+    }, [currentListId]);
+
+    const reorderItems = useCallback(async (orderedIds: string[]) => {
+        if (!currentListId) return;
+
+        try {
+            const batch = writeBatch(db);
+            orderedIds.forEach((id, index) => {
+                const itemRef = doc(db, "lists", currentListId, "items", id);
+                batch.update(itemRef, { sortOrder: index });
+            });
+
+            await batch.commit();
+        } catch (e) {
+            console.error("Failed to reorder items:", e);
+        }
     }, [currentListId]);
 
     const removeItem = useCallback(async (id: string) => {
@@ -401,6 +429,7 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         updateItems, // Deprecated
         addItem,
         updateItem,
+        reorderItems,
         removeItem,
         resetBoughtItems,
         createList,

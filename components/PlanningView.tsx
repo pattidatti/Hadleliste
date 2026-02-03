@@ -1,20 +1,124 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { ShoppingItem } from '../types';
 import { getSmartCategorization, parseReceiptPrices } from '../services/geminiService';
+import { haptics } from '../services/haptics';
 import { CATEGORIES } from '../constants/commonItems';
 import { useToast } from './Toast';
 import CatalogMigration from './CatalogMigration';
 import { useCatalog } from '../hooks/useCatalog';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  TouchSensor
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 
-
-interface PlanningViewProps {
-  items: ShoppingItem[];
-  addItem: (item: Omit<ShoppingItem, 'id' | 'createdAt'>) => Promise<void>;
+interface SortableItemProps {
+  item: ShoppingItem;
   updateItem: (id: string, updates: Partial<ShoppingItem>) => Promise<void>;
   removeItem: (id: string) => Promise<void>;
 }
 
-const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook, updateItem: updateItemHook, removeItem: removeItemHook }) => {
+const SortableItem: React.FC<SortableItemProps> = ({ item, updateItem, removeItem }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 'auto',
+    opacity: isDragging ? 0.6 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-white p-3 rounded-2xl border ${isDragging ? 'border-indigo-300 shadow-xl scale-[1.02]' : 'border-slate-100 shadow-sm'} transition-all duration-200`}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2 flex-1">
+          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 text-slate-300 hover:text-indigo-400 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="5" r="1" /><circle cx="9" cy="12" r="1" /><circle cx="9" cy="19" r="1" /><circle cx="15" cy="5" r="1" /><circle cx="15" cy="12" r="1" /><circle cx="15" cy="19" r="1" /></svg>
+          </div>
+          <span className="font-semibold text-slate-800 text-sm">{item.name}</span>
+        </div>
+        <button
+          onClick={() => removeItem(item.id)}
+          className="p-1.5 text-slate-300 hover:text-red-500 active:text-red-600 transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+        </button>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="flex items-center bg-slate-50 rounded-xl p-0.5 border border-slate-100">
+          <button
+            onClick={() => updateItem(item.id, { quantity: Math.max(1, item.quantity - 1) })}
+            className="w-7 h-7 flex items-center justify-center text-indigo-600 font-black hover:bg-white rounded-lg transition-colors"
+          >–</button>
+          <span className="w-8 text-center text-xs font-bold text-slate-700">{item.quantity}</span>
+          <button
+            onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}
+            className="w-7 h-7 flex items-center justify-center text-indigo-600 font-black hover:bg-white rounded-lg transition-colors"
+          >+</button>
+        </div>
+        <div className="flex-1 relative flex items-center gap-2 group/price">
+          <div className="relative flex-1">
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400 uppercase group-focus-within/price:text-indigo-500 transition-colors">kr</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="0.00"
+              value={item.price || ''}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => {
+                const val = e.target.value.replace(',', '.').replace(/[^\d.]/g, '');
+                if ((val.match(/\./g) || []).length > 1) return;
+                updateItem(item.id, { price: parseFloat(val) || 0 });
+              }}
+              className="w-full pl-7 pr-3 py-1.5 bg-slate-50 border-2 border-transparent focus:border-indigo-500/30 focus:bg-white rounded-xl text-xs font-bold text-slate-700 outline-none transition-all duration-200"
+            />
+          </div>
+          {(item.price || 0) > 0 && (
+            <div className="bg-indigo-50 px-2 py-1.5 rounded-xl border border-indigo-100/50">
+              <span className="text-[10px] font-black text-indigo-500">{(item.price * item.quantity).toFixed(0)},-</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+interface PlanningViewProps {
+  items: ShoppingItem[];
+  addItem: (item: Omit<ShoppingItem, 'id' | 'createdAt' | 'sortOrder'>) => Promise<void>;
+  updateItem: (id: string, updates: Partial<ShoppingItem>) => Promise<void>;
+  removeItem: (id: string) => Promise<void>;
+  reorderItems: (orderedIds: string[]) => Promise<void>;
+}
+
+const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook, updateItem: updateItemHook, removeItem: removeItemHook, reorderItems }) => {
   const [newItemName, setNewItemName] = useState('');
 
   const capitalizeFirstLetter = useCallback((str: string) => {
@@ -60,6 +164,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
       await addItemHook(newItem);
       setNewItemName('');
       addToast(`La til ${existingProduct.name}`, 'success');
+      haptics.success();
 
       // Update popularity in background
       addOrUpdateProduct(existingProduct.name);
@@ -86,6 +191,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
         await addItemHook(newItem);
         setNewItemName('');
         addToast(`La til ${capitalizedName}`, 'success');
+        haptics.success();
       } catch (error) {
         console.error(error);
         addToast("Feil ved kategorisering", 'error');
@@ -189,6 +295,36 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
   const suggestions = newItemName.length >= 2 ? products
     .filter(p => !p.deleted && p.name.toLowerCase().includes(newItemName.toLowerCase()))
     .slice(0, 5) : [];
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = items.findIndex((i) => i.id === active.id);
+      const newIndex = items.findIndex((i) => i.id === over.id);
+
+      const reorderedItems = arrayMove(items, oldIndex, newIndex);
+      reorderItems(reorderedItems.map(i => i.id));
+      haptics.impact();
+    }
+  };
 
   return (
     <div className="flex flex-col gap-8 pb-32">
@@ -313,140 +449,107 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
             <p className="text-slate-400 text-sm font-medium">Ingen varer valgt ennå.<br />Velg fra katalogen under.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {activeGrouped.map(group => (
-              <div key={group.name} className="space-y-2">
-                <h3 className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{group.name}</h3>
-                {group.items.map(item => (
-                  <div key={item.id} className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm animate-in slide-in-from-left-2 duration-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-slate-800 text-sm">{item.name}</span>
-                      <button
-                        onClick={() => removeItem(item.id)}
-                        className="p-1.5 text-slate-300 hover:text-red-500 active:text-red-600 transition-colors"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center bg-slate-50 rounded-xl p-0.5 border border-slate-100">
-                        <button
-                          onClick={() => updateItem(item.id, { quantity: Math.max(1, item.quantity - 1) })}
-                          className="w-7 h-7 flex items-center justify-center text-indigo-600 font-black hover:bg-white rounded-lg transition-colors"
-                        >–</button>
-                        <span className="w-8 text-center text-xs font-bold text-slate-700">{item.quantity}</span>
-                        <button
-                          onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}
-                          className="w-7 h-7 flex items-center justify-center text-indigo-600 font-black hover:bg-white rounded-lg transition-colors"
-                        >+</button>
-                      </div>
-                      <div className="flex-1 relative flex items-center gap-2">
-                        <div className="relative flex-1">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400 uppercase group-focus-within/price:text-indigo-500 transition-colors">kr</span>
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            placeholder="0.00"
-                            value={item.price || ''}
-                            onFocus={(e) => e.target.select()}
-                            onChange={(e) => {
-                              const val = e.target.value.replace(',', '.').replace(/[^\d.]/g, '');
-                              // Prevent multiple dots
-                              if ((val.match(/\./g) || []).length > 1) return;
-                              updateItem(item.id, { price: parseFloat(val) || 0 });
-                            }}
-                            className="w-full pl-7 pr-3 py-1.5 bg-slate-50 border-2 border-transparent focus:border-indigo-500/30 focus:bg-white rounded-xl text-xs font-bold text-slate-700 outline-none transition-all duration-200"
-                          />
-                        </div>
-                        {(item.price || 0) > 0 && (
-                          <div className="flex flex-col items-end min-w-[3.5rem]">
-                            <span className="text-[9px] font-black text-indigo-400 uppercase leading-none mb-0.5">Total</span>
-                            <span className="text-xs font-black text-slate-700 whitespace-nowrap">
-                              {(item.price * item.quantity).toFixed(2)} <span className="text-[10px] font-normal text-slate-400 font-sans">kr</span>
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+            modifiers={[restrictToVerticalAxis]}
+          >
+            <SortableContext
+              items={items.map(i => i.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-4">
+                {activeGrouped.map(group => (
+                  <div key={group.name} className="space-y-2">
+                    <h3 className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{group.name}</h3>
+                    {group.items.map(item => (
+                      <SortableItem
+                        key={item.id}
+                        item={item}
+                        updateItem={updateItemHook}
+                        removeItem={removeItemHook}
+                      />
+                    ))}
                   </div>
                 ))}
               </div>
             ))}
-          </div>
+            </div>
         )}
-      </section>
+          </section>
 
       {/* MASTER CATALOG */}
-      <section className="space-y-4 pt-4 border-t border-slate-200">
-        <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide px-1">Katalog</h2>
+        <section className="space-y-4 pt-4 border-t border-slate-200">
+          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide px-1">Katalog</h2>
 
-        <div className="space-y-3">
-          {catalogGrouped.map(cat => (
-            cat.items.length > 0 && (
-              <div key={cat.name} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <button
-                  onClick={() => toggleCategory(cat.name)}
-                  className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-slate-50 transition-colors"
-                >
-                  <span className="text-sm font-bold text-slate-700">{cat.name} <span className="opacity-50 font-normal">({cat.items.length})</span></span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="18" height="18"
-                    viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                    strokeLinecap="round" strokeLinejoin="round"
-                    className={`text-slate-400 transition-transform duration-300 ${expandedCategories.includes(cat.name) ? 'rotate-180' : ''}`}
+          <div className="space-y-3">
+            {catalogGrouped.map(cat => (
+              cat.items.length > 0 && (
+                <div key={cat.name} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  <button
+                    onClick={() => toggleCategory(cat.name)}
+                    className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-slate-50 transition-colors"
                   >
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
-                </button>
+                    <span className="text-sm font-bold text-slate-700">{cat.name} <span className="opacity-50 font-normal">({cat.items.length})</span></span>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="18" height="18"
+                      viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                      strokeLinecap="round" strokeLinejoin="round"
+                      className={`text-slate-400 transition-transform duration-300 ${expandedCategories.includes(cat.name) ? 'rotate-180' : ''}`}
+                    >
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
 
-                {expandedCategories.includes(cat.name) && (
-                  <div className="px-4 pb-4 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-1">
-                    {cat.items.map(product => {
-                      const isAdded = items.some(i => i.name.toLowerCase() === product.name.toLowerCase());
-                      return (
-                        <button
-                          key={product.id}
-                          onClick={() => addItem(product.name)}
-                          disabled={isAdded || isLoading}
-                          className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 border ${isAdded
-                            ? 'bg-slate-50 border-slate-100 text-slate-300'
-                            : 'bg-indigo-50 border-indigo-100 text-indigo-700 active:scale-95 shadow-sm active:shadow-none'
-                            }`}
-                        >
-                          {isAdded ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-                          ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
-                          )}
-                          {product.name}
-                          {product.price > 0 && <span className="text-indigo-400 font-normal ml-0.5">{product.price},-</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )
-          ))}
-        </div>
-      </section>
+                  {expandedCategories.includes(cat.name) && (
+                    <div className="px-4 pb-4 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-1">
+                      {cat.items.map(product => {
+                        const isAdded = items.some(i => i.name.toLowerCase() === product.name.toLowerCase());
+                        return (
+                          <button
+                            key={product.id}
+                            onClick={() => addItem(product.name)}
+                            disabled={isAdded || isLoading}
+                            className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 border ${isAdded
+                              ? 'bg-slate-50 border-slate-100 text-slate-300'
+                              : 'bg-indigo-50 border-indigo-100 text-indigo-700 active:scale-95 shadow-sm active:shadow-none'
+                              }`}
+                          >
+                            {isAdded ? (
+                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
+                            )}
+                            {product.name}
+                            {product.price > 0 && <span className="text-indigo-400 font-normal ml-0.5">{product.price},-</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            ))}
+          </div>
+        </section>
 
-      {/* Sticky Summary Bar */}
-      {items.length > 0 && (
-        <div className="fixed bottom-6 left-4 right-4 max-w-md mx-auto bg-slate-900 text-white p-4 rounded-3xl shadow-2xl flex justify-between items-center z-30 animate-in slide-in-from-bottom-12">
-          <div>
-            <span className="text-slate-400 text-[9px] uppercase font-black tracking-widest block mb-0.5">Estimert Total</span>
-            <span className="text-xl font-black text-white">{totalPrice.toFixed(2)} <span className="text-xs font-normal text-slate-400">kr</span></span>
+        {/* Sticky Summary Bar */}
+        {items.length > 0 && (
+          <div className="fixed bottom-6 left-4 right-4 max-w-md mx-auto bg-slate-900 text-white p-4 rounded-3xl shadow-2xl flex justify-between items-center z-30 animate-in slide-in-from-bottom-12">
+            <div>
+              <span className="text-slate-400 text-[9px] uppercase font-black tracking-widest block mb-0.5">Estimert Total</span>
+              <span className="text-xl font-black text-white">{totalPrice.toFixed(2)} <span className="text-xs font-normal text-slate-400">kr</span></span>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="px-2 py-1 bg-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-wider mb-1">
+                {items.length} {items.length === 1 ? 'vare' : 'varer'}
+              </span>
+              <span className="text-[10px] text-slate-400 font-medium">Klar til å handle?</span>
+            </div>
           </div>
-          <div className="flex flex-col items-end">
-            <span className="px-2 py-1 bg-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-wider mb-1">
-              {items.length} {items.length === 1 ? 'vare' : 'varer'}
-            </span>
-            <span className="text-[10px] text-slate-400 font-medium">Klar til å handle?</span>
-          </div>
-        </div>
-      )}
+        )}
     </div>
   );
 };

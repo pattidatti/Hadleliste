@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ShoppingItem } from '../types';
 import { CATEGORIES } from '../constants/commonItems';
 import { useSwipe } from '../hooks/useSwipe';
+import { haptics } from '../services/haptics';
 import { useCatalog } from '../hooks/useCatalog';
 import { useToast } from './Toast';
 
@@ -74,6 +75,7 @@ const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook
     if (newStatus === true) {
       addOrUpdateProduct(item.name, item.price, item.category);
     }
+    haptics.medium();
     await updateItemHook(id, { isBought: newStatus });
   };
 
@@ -88,6 +90,7 @@ const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook
 
       if (success) {
         addToast("Listen er nullstilt", "success");
+        haptics.warning();
       } else {
         addToast("Kunne ikke nullstille listen", "error");
       }
@@ -96,6 +99,7 @@ const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook
 
   const deleteItem = async (id: string) => {
     if (window.confirm('Slette denne varen?')) {
+      haptics.warning();
       await removeItemHook(id);
     }
   };

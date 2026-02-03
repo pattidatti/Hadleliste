@@ -136,6 +136,7 @@ const App: React.FC = () => {
               addItem={addItem}
               updateItem={updateItem}
               removeItem={removeItem}
+              reorderItems={reorderItems}
             />
           </div>
         )}

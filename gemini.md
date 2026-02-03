@@ -31,7 +31,8 @@ If the user prompts **"ULTRATHINK"**:
 - **Language**: TypeScript (Strict Mode)
 - **Styling**: Tailwind CSS v4 (Utility-first, no external CSS files unless global).
 - **Backend**: Firebase (Auth, Firestore)
-- **AI**: Google GenAI SDK
+- [x] **AI**: Google GenAI SDK
+- [x] **Drag & Drop**: `@dnd-kit` (Core, Sortable)
 
 ## 4. Coding Standards
 - **Zero Fluff**: Code first, explain later (unless Ultrathink is active).

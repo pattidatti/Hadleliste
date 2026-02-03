@@ -8,6 +8,7 @@ export interface ShoppingItem {
   category: string;
   isBought: boolean;
   createdAt: number;
+  sortOrder: number;
 }
 
 export interface Product {
