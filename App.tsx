@@ -30,8 +30,11 @@ const App: React.FC = () => {
     toggleListVisibility,
     removeCollaborator,
     leaveList,
-    isOwner
+    isOwner,
+    reorderItems
   } = useShoppingList(user);
+
+  const currentList = lists.find(l => l.id === currentListId);
 
   const [mode, setMode] = useState<AppMode>(AppMode.LISTS);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -148,6 +151,8 @@ const App: React.FC = () => {
               updateItem={updateItem}
               removeItem={removeItem}
               onReset={resetBoughtItems}
+              categoryOrder={currentList?.categoryOrder}
+              lastShopperEmail={currentList?.lastShopperEmail}
             />
           </div>
         )}

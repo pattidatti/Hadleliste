@@ -9,6 +9,7 @@ export interface ShoppingItem {
   isBought: boolean;
   createdAt: number;
   sortOrder: number;
+  checkedAt?: number; // Timestamp when marked as bought (for learning)
 }
 
 export interface Product {
@@ -56,4 +57,14 @@ export interface SharedList {
   updatedAt: number;
   isPrivate?: boolean;
   deletedAt?: number;
+  // Store-Pathing fields
+  categoryOrder?: string[];
+  itemPathWeights?: Record<string, number>;
+  lastShopperEmail?: string;
+}
+
+export interface UserSettings {
+  globalCategoryOrder: string[];
+  lastUsedListId?: string;
+  routeAutoSync?: boolean;
 }

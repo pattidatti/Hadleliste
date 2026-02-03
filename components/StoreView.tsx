@@ -11,6 +11,8 @@ interface StoreViewProps {
   updateItem: (id: string, updates: Partial<ShoppingItem>) => Promise<void>;
   removeItem: (id: string) => Promise<void>;
   onReset: () => Promise<boolean>;
+  categoryOrder?: string[]; // Learned category order from store-pathing
+  lastShopperEmail?: string;
 }
 
 const SwipeableItem = ({ item, onToggle, onDelete }: { item: ShoppingItem, onToggle: (id: string) => void, onDelete: (id: string) => void }) => {
@@ -61,7 +63,7 @@ const SwipeableItem = ({ item, onToggle, onDelete }: { item: ShoppingItem, onTog
   );
 };
 
-const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook, removeItem: removeItemHook, onReset }) => {
+const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook, removeItem: removeItemHook, onReset, categoryOrder, lastShopperEmail }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isResetting, setIsResetting] = useState(false);
   const { addOrUpdateProduct } = useCatalog();
@@ -115,19 +117,26 @@ const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook
   const activeItems = filteredItems.filter(i => !i.isBought);
   const completedItems = filteredItems.filter(i => i.isBought);
 
-  // Group active items by category
-  const groupedActive = CATEGORIES.map(cat => ({
+  // Smart Sort: Use learned categoryOrder if available, fallback to default CATEGORIES
+  const effectiveCategoryOrder = categoryOrder && categoryOrder.length > 0
+    ? [...categoryOrder, ...CATEGORIES.filter(c => !categoryOrder.includes(c))]
+    : CATEGORIES;
+
+  // Group active items by category using learned order
+  const groupedActive = effectiveCategoryOrder.map(cat => ({
     name: cat,
     items: activeItems.filter(i => (i.category || 'Annet') === cat)
   })).filter(g => g.items.length > 0);
 
   // Handle items with unknown categories
-  const knownCategories = new Set(CATEGORIES);
+  const knownCategories = new Set(effectiveCategoryOrder);
   const unknownCategoryItems = activeItems.filter(i => !knownCategories.has(i.category || 'Annet'));
 
   if (unknownCategoryItems.length > 0) {
     groupedActive.push({ name: 'Annet', items: unknownCategoryItems });
   }
+
+  const isSmartSorted = categoryOrder && categoryOrder.length > 0;
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in slide-in-from-bottom-2">
@@ -159,6 +168,17 @@ const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook
                 style={{ width: `${progress}%` }}
               />
             </div>
+
+            {isSmartSorted && (
+              <div className="flex items-center gap-1.5 px-1">
+                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  ✨ Optimal rute
+                  {lastShopperEmail && (
+                    <span className="text-emerald-400 font-normal">• {lastShopperEmail.split('@')[0]}</span>
+                  )}
+                </span>
+              </div>
+            )}
 
             <div className="relative">
               <input

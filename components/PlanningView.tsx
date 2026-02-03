@@ -150,15 +150,13 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
     const existingProduct = getProduct(capitalizedName);
 
     if (existingProduct) {
-      const newItem: ShoppingItem = {
-        id: crypto.randomUUID(),
+      const newItem = {
         name: existingProduct.name, // Use canonical name
         quantity: 1,
         unit: existingProduct.unit || 'stk',
         price: existingProduct.price || 0,
         category: existingProduct.category,
         isBought: false,
-        createdAt: Date.now()
       };
 
       await addItemHook(newItem);
@@ -177,15 +175,13 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
         // Save to global catalog immediately for next time
         await addOrUpdateProduct(capitalizedName, 0, category);
 
-        const newItem: ShoppingItem = {
-          id: crypto.randomUUID(),
+        const newItem = {
           name: capitalizedName,
           quantity: 1,
           unit: 'stk',
           price: 0,
           category,
           isBought: false,
-          createdAt: Date.now()
         };
 
         await addItemHook(newItem);
@@ -474,82 +470,82 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
                   </div>
                 ))}
               </div>
-            ))}
-            </div>
+            </SortableContext>
+          </DndContext>
         )}
-          </section>
+      </section>
 
       {/* MASTER CATALOG */}
-        <section className="space-y-4 pt-4 border-t border-slate-200">
-          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide px-1">Katalog</h2>
+      <section className="space-y-4 pt-4 border-t border-slate-200">
+        <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide px-1">Katalog</h2>
 
-          <div className="space-y-3">
-            {catalogGrouped.map(cat => (
-              cat.items.length > 0 && (
-                <div key={cat.name} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                  <button
-                    onClick={() => toggleCategory(cat.name)}
-                    className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-slate-50 transition-colors"
+        <div className="space-y-3">
+          {catalogGrouped.map(cat => (
+            cat.items.length > 0 && (
+              <div key={cat.name} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <button
+                  onClick={() => toggleCategory(cat.name)}
+                  className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-slate-50 transition-colors"
+                >
+                  <span className="text-sm font-bold text-slate-700">{cat.name} <span className="opacity-50 font-normal">({cat.items.length})</span></span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18" height="18"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round"
+                    className={`text-slate-400 transition-transform duration-300 ${expandedCategories.includes(cat.name) ? 'rotate-180' : ''}`}
                   >
-                    <span className="text-sm font-bold text-slate-700">{cat.name} <span className="opacity-50 font-normal">({cat.items.length})</span></span>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="18" height="18"
-                      viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                      strokeLinecap="round" strokeLinejoin="round"
-                      className={`text-slate-400 transition-transform duration-300 ${expandedCategories.includes(cat.name) ? 'rotate-180' : ''}`}
-                    >
-                      <path d="m6 9 6 6 6-6" />
-                    </svg>
-                  </button>
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
 
-                  {expandedCategories.includes(cat.name) && (
-                    <div className="px-4 pb-4 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-1">
-                      {cat.items.map(product => {
-                        const isAdded = items.some(i => i.name.toLowerCase() === product.name.toLowerCase());
-                        return (
-                          <button
-                            key={product.id}
-                            onClick={() => addItem(product.name)}
-                            disabled={isAdded || isLoading}
-                            className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 border ${isAdded
-                              ? 'bg-slate-50 border-slate-100 text-slate-300'
-                              : 'bg-indigo-50 border-indigo-100 text-indigo-700 active:scale-95 shadow-sm active:shadow-none'
-                              }`}
-                          >
-                            {isAdded ? (
-                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-                            ) : (
-                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
-                            )}
-                            {product.name}
-                            {product.price > 0 && <span className="text-indigo-400 font-normal ml-0.5">{product.price},-</span>}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            ))}
-          </div>
-        </section>
+                {expandedCategories.includes(cat.name) && (
+                  <div className="px-4 pb-4 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-1">
+                    {cat.items.map(product => {
+                      const isAdded = items.some(i => i.name.toLowerCase() === product.name.toLowerCase());
+                      return (
+                        <button
+                          key={product.id}
+                          onClick={() => addItem(product.name)}
+                          disabled={isAdded || isLoading}
+                          className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 border ${isAdded
+                            ? 'bg-slate-50 border-slate-100 text-slate-300'
+                            : 'bg-indigo-50 border-indigo-100 text-indigo-700 active:scale-95 shadow-sm active:shadow-none'
+                            }`}
+                        >
+                          {isAdded ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
+                          )}
+                          {product.name}
+                          {product.price > 0 && <span className="text-indigo-400 font-normal ml-0.5">{product.price},-</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          ))}
+        </div>
+      </section>
 
-        {/* Sticky Summary Bar */}
-        {items.length > 0 && (
-          <div className="fixed bottom-6 left-4 right-4 max-w-md mx-auto bg-slate-900 text-white p-4 rounded-3xl shadow-2xl flex justify-between items-center z-30 animate-in slide-in-from-bottom-12">
-            <div>
-              <span className="text-slate-400 text-[9px] uppercase font-black tracking-widest block mb-0.5">Estimert Total</span>
-              <span className="text-xl font-black text-white">{totalPrice.toFixed(2)} <span className="text-xs font-normal text-slate-400">kr</span></span>
-            </div>
-            <div className="flex flex-col items-end">
-              <span className="px-2 py-1 bg-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-wider mb-1">
-                {items.length} {items.length === 1 ? 'vare' : 'varer'}
-              </span>
-              <span className="text-[10px] text-slate-400 font-medium">Klar til å handle?</span>
-            </div>
+      {/* Sticky Summary Bar */}
+      {items.length > 0 && (
+        <div className="fixed bottom-6 left-4 right-4 max-w-md mx-auto bg-slate-900 text-white p-4 rounded-3xl shadow-2xl flex justify-between items-center z-30 animate-in slide-in-from-bottom-12">
+          <div>
+            <span className="text-slate-400 text-[9px] uppercase font-black tracking-widest block mb-0.5">Estimert Total</span>
+            <span className="text-xl font-black text-white">{totalPrice.toFixed(2)} <span className="text-xs font-normal text-slate-400">kr</span></span>
           </div>
-        )}
+          <div className="flex flex-col items-end">
+            <span className="px-2 py-1 bg-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-wider mb-1">
+              {items.length} {items.length === 1 ? 'vare' : 'varer'}
+            </span>
+            <span className="text-[10px] text-slate-400 font-medium">Klar til å handle?</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

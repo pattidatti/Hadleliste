@@ -220,7 +220,16 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
 
     const updateItem = useCallback(async (id: string, updates: Partial<ShoppingItem>) => {
         if (!currentListId) return;
-        await updateDoc(doc(db, "lists", currentListId, "items", id), updates);
+
+        // Shadow Learner: Capture check timestamp when marking as bought
+        const enhancedUpdates = { ...updates };
+        if (updates.isBought === true) {
+            enhancedUpdates.checkedAt = Date.now();
+        } else if (updates.isBought === false) {
+            enhancedUpdates.checkedAt = undefined; // Clear when unchecking
+        }
+
+        await updateDoc(doc(db, "lists", currentListId, "items", id), enhancedUpdates);
 
         // Update parent updatedAt
         await updateDoc(doc(db, "lists", currentListId), {
@@ -255,22 +264,44 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
     }, [currentListId]);
 
     const resetBoughtItems = useCallback(async (): Promise<boolean> => {
-        if (!currentListId) return false;
+        if (!currentListId || !user?.email) return false;
 
         try {
             const boughtItems = items.filter(i => i.isBought);
             if (boughtItems.length === 0) return true;
 
+            // Shadow Learner: Calculate category order from check sequence
+            const itemsWithCheckTime = boughtItems
+                .filter(i => i.checkedAt) // Only items with check timestamps
+                .sort((a, b) => (a.checkedAt || 0) - (b.checkedAt || 0));
+
+            // Extract unique category sequence from the check order
+            const learnedCategoryOrder: string[] = [];
+            itemsWithCheckTime.forEach(item => {
+                if (!learnedCategoryOrder.includes(item.category)) {
+                    learnedCategoryOrder.push(item.category);
+                }
+            });
+
             const batch = writeBatch(db);
             const now = serverTimestamp();
 
+            // Reset items
             boughtItems.forEach(item => {
                 const docRef = doc(db, "lists", currentListId, "items", item.id);
-                batch.update(docRef, { isBought: false });
+                batch.update(docRef, { isBought: false, checkedAt: null });
             });
 
-            // Update parent timestamp
-            batch.update(doc(db, "lists", currentListId), { updatedAt: now });
+            // Update list with learned category order and last shopper
+            if (learnedCategoryOrder.length > 0) {
+                batch.update(doc(db, "lists", currentListId), {
+                    updatedAt: now,
+                    categoryOrder: learnedCategoryOrder,
+                    lastShopperEmail: user.email.toLowerCase()
+                });
+            } else {
+                batch.update(doc(db, "lists", currentListId), { updatedAt: now });
+            }
 
             await batch.commit();
             return true;
