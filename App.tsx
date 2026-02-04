@@ -53,16 +53,12 @@ const App: React.FC = () => {
   const { addToast } = useToast();
 
   const handleGenerateSmartList = async () => {
-    if (!currentListId) {
-      addToast("Du må velge en liste først", "error");
-      return;
-    }
-
     setIsGeneratingSmartList(true);
     try {
       const frequent = getFrequentItems(15);
       const recurring = getRecurringPatterns();
-      const currentItemNames = items.filter(i => !i.isBought).map(i => i.name);
+      // For smart list generation, we ignore current items since we are creating a NEW list
+      const currentItemNames: string[] = [];
 
       // Use actual preferred hours from stats
       const preferredHours = stats?.preferredHours || [];
@@ -80,10 +76,15 @@ const App: React.FC = () => {
       if (suggestions.length === 0) {
         addToast("Fant ingen nye forslag akkurat nå", "info");
       } else {
-        let addedCount = 0;
-        for (const s of suggestions) {
-          // Double check avoiding duplicates
-          if (!currentItemNames.includes(s.name)) {
+        // Create new list
+        const dateStr = new Date().toLocaleDateString('no-NO', { day: 'numeric', month: 'short' });
+        const listName = `Smarte forslag (${dateStr})`;
+
+        const newListId = await createList(listName);
+
+        if (newListId) {
+          let addedCount = 0;
+          for (const s of suggestions) {
             await addItem({
               name: s.name,
               quantity: 1,
@@ -91,19 +92,21 @@ const App: React.FC = () => {
               isBought: false,
               unit: 'stk',
               price: 0
-            });
+            }, newListId);
             addedCount++;
           }
-        }
-        if (addedCount > 0) {
-          addToast(`La til ${addedCount} smarte forslag! 🧠`, "success");
+
+          if (addedCount > 0) {
+            addToast(`Opprettet "${listName}" med ${addedCount} forslag! 🧠`, "success");
+            setMode(AppMode.PLANNING);
+          }
         } else {
-          addToast("Alle forslag fantes allerede i listen", "info");
+          addToast("Kunne ikke opprette liste", "error");
         }
       }
     } catch (error) {
-      console.error("Smart generation failed:", error);
-      addToast("Kunne ikke generere liste", "error");
+      console.error("Smart list generation failed:", error);
+      addToast("Noe gikk galt med genereringen", "error");
     } finally {
       setIsGeneratingSmartList(false);
     }

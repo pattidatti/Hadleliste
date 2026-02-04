@@ -6,7 +6,7 @@ interface ListsViewProps {
     lists: SharedList[];
     currentListId: string | null;
     onSelectList: (id: string) => void;
-    onCreateList: (name: string) => Promise<void>;
+    onCreateList: (name: string) => Promise<string | null>;
     onRenameList: (id: string, name: string) => Promise<boolean>;
     onDeleteList: (id: string) => Promise<boolean>;
     onDeleteLists: (ids: string[]) => Promise<boolean>;
