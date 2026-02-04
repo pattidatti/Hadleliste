@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+:root {
+    --app-bg: #fdfdfd;
+    --app-surface: #ffffff;
+    --app-text: #0f172a;
+    --app-text-muted: #64748b;
+    --app-border: #e2e8f0;
+    --app-accent: #4f46e5;
+}
+
+.dark {
+    --app-bg: #020617;
+    --app-surface: #0f172a;
+    --app-text: #f8fafc;
+    --app-text-muted: #94a3b8;
+    --app-border: #1e293b;
+    --app-accent: #818cf8;
+    --glow-indigo: 0 0 15px rgba(129, 140, 248, 0.15);
+}
+
+@layer utilities {
+    .bg-primary {
+        background-color: var(--app-bg);
+    }
+
+    .bg-surface {
+        background-color: var(--app-surface);
+    }
+
+    .text-primary {
+        color: var(--app-text);
+    }
+
+    .text-secondary {
+        color: var(--app-text-muted);
+    }
+
+    .border-primary {
+        border-color: var(--app-border);
+    }
+
+    /* Semantic utilities for accent */
+    .text-accent-primary {
+        color: var(--app-accent);
+    }
+
+    .bg-accent-primary {
+        background-color: var(--app-accent);
+    }
+
+    .border-accent-primary {
+        border-color: var(--app-accent);
+    }
+
+    .ring-accent-primary {
+        --tw-ring-color: var(--app-accent);
+    }
+}
+
+@layer base {
+
+    *,
+    *::before,
+    *::after {
+        @apply transition-all duration-300 ease-in-out;
+    }
+}
