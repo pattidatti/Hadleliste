@@ -83,18 +83,19 @@ const App: React.FC = () => {
         const newListId = await createList(listName);
 
         if (newListId) {
-          let addedCount = 0;
-          for (const s of suggestions) {
-            await addItem({
+          const promises = suggestions.map(s =>
+            addItem({
               name: s.name,
               quantity: 1,
               category: s.category,
               isBought: false,
               unit: 'stk',
               price: 0
-            }, newListId);
-            addedCount++;
-          }
+            }, newListId)
+          );
+
+          await Promise.all(promises);
+          const addedCount = suggestions.length;
 
           if (addedCount > 0) {
             addToast(`Opprettet "${listName}" med ${addedCount} forslag! 🧠`, "success");
