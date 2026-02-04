@@ -14,10 +14,15 @@ import ProductsView from './components/ProductsView';
 import { useCatalog } from './hooks/useCatalog';
 
 import { useTheme } from './hooks/useTheme';
-import { generateSmartShoppingList } from './services/geminiService';
+import { generateSmartShoppingList, logAvailableModels } from './services/geminiService';
 import { useToast } from './components/Toast';
 
 const App: React.FC = () => {
+  // Debug models on mount
+  useEffect(() => {
+    logAvailableModels();
+  }, []);
+
   const { user, loading, signIn, logOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const {
@@ -82,7 +87,7 @@ const App: React.FC = () => {
       );
 
       if (suggestions.length === 0) {
-        addToast("Fant ingen nye forslag akkurat nå", "info");
+        addToast("Fant ingen nye forslag (tom liste returnert)", "info");
       } else {
         // Create new list
         const dateStr = new Date().toLocaleDateString('no-NO', { day: 'numeric', month: 'short' });
@@ -121,9 +126,9 @@ const App: React.FC = () => {
           addToast("Kunne ikke opprette liste", "error");
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Smart list generation failed:", error);
-      addToast("Noe gikk galt med genereringen", "error");
+      addToast(`Feil: ${error.message || "Ukjent feil"}`, "error");
     } finally {
       setIsGeneratingSmartList(false);
     }

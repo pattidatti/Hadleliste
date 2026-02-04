@@ -7,7 +7,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 export const getSmartCategorization = async (itemName: string): Promise<string> => {
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       contents: `Kategoriser følgende matvare eller husholdningsartikkel: "${itemName}". Svar med kun ett kategorinavn fra denne listen: "Basisvarer", "Ost & Pålegg", "Middag & Kjøtt", "Pizza & Bakst", "Wok & Krydder", "Taco", "Barn & Hygiene", "Hus & Hjem", "Annet".`,
     });
     return response.text.trim();
@@ -20,7 +20,7 @@ export const getSmartCategorization = async (itemName: string): Promise<string> 
 export const getShoppingSuggestions = async (prompt: string): Promise<GeminiSuggestion[]> => {
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       contents: `Basert på denne forespørselen: "${prompt}", foreslå en liste over varer som trengs. Returner som JSON.`,
       config: {
         responseMimeType: "application/json",
@@ -48,7 +48,7 @@ export const getShoppingSuggestions = async (prompt: string): Promise<GeminiSugg
 export const parseReceiptPrices = async (base64Image: string): Promise<{ name: string, price: number }[]> => {
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: 'gemini-2.5-flash',
       contents: [
         {
           inlineData: {
@@ -126,7 +126,7 @@ Returner JSON:
 `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -149,6 +149,20 @@ Returner JSON:
     return JSON.parse(response.text);
   } catch (error) {
     console.error("Smart List Generation Error:", error);
-    return [];
+    throw error;
+  }
+};
+
+export const logAvailableModels = async () => {
+  try {
+    const response = await ai.models.list();
+    console.log("---- AVAILABLE GEMINI MODELS ----");
+    // @ts-ignore
+    const models = response.models || response;
+    console.log(JSON.stringify(models, null, 2));
+    console.log("---------------------------------");
+    return models;
+  } catch (e) {
+    console.error("Failed to list models:", e);
   }
 };
