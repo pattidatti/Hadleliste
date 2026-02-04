@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
-import { ShoppingItem } from '../types';
+import { ShoppingItem, ShoppingSession } from '../types';
 import { CATEGORIES } from '../constants/commonItems';
 import { useSwipe } from '../hooks/useSwipe';
 import { haptics } from '../services/haptics';
 import { useCatalog } from '../hooks/useCatalog';
 import { useToast } from './Toast';
+import { CompleteTripResult } from '../hooks/useShoppingList';
 
 interface StoreViewProps {
   items: ShoppingItem[];
   updateItem: (id: string, updates: Partial<ShoppingItem>) => Promise<void>;
   removeItem: (id: string) => Promise<void>;
   onReset: () => Promise<boolean>;
+  onComplete: (storeName?: string) => CompleteTripResult;
+  onSaveSession: (listId: string, session: Omit<ShoppingSession, 'id'>) => Promise<void>;
   categoryOrder?: string[]; // Learned category order from store-pathing
   lastShopperEmail?: string;
 }
@@ -63,9 +66,13 @@ const SwipeableItem = ({ item, onToggle, onDelete }: { item: ShoppingItem, onTog
   );
 };
 
-const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook, removeItem: removeItemHook, onReset, categoryOrder, lastShopperEmail }) => {
+const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook, removeItem: removeItemHook, onReset, onComplete, onSaveSession, categoryOrder, lastShopperEmail }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isResetting, setIsResetting] = useState(false);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [completionResult, setCompletionResult] = useState<CompleteTripResult | null>(null);
+  const [storeName, setStoreName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const { addOrUpdateProduct } = useCatalog();
   const { addToast } = useToast();
 
@@ -103,6 +110,34 @@ const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook
     if (window.confirm('Slette denne varen?')) {
       haptics.warning();
       await removeItemHook(id);
+    }
+  };
+
+  // Open completion modal
+  const handleComplete = () => {
+    const result = onComplete();
+    setCompletionResult(result);
+    setShowCompletionModal(true);
+  };
+
+  // Save session and reset list
+  const handleSaveAndReset = async () => {
+    if (!completionResult?.session) return;
+
+    setIsSaving(true);
+    try {
+      await onSaveSession(completionResult.session.listId, completionResult.session);
+      await onReset();
+      setShowCompletionModal(false);
+      setCompletionResult(null);
+      setStoreName('');
+      addToast('Handelen er lagret! 🎉', 'success');
+      haptics.success();
+    } catch (error) {
+      console.error('Failed to save session:', error);
+      addToast('Kunne ikke lagre handelen', 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -236,6 +271,96 @@ const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook
           </div>
         )}
       </div>
+
+      {/* Floating Complete Button */}
+      {boughtItems > 0 && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50">
+          <button
+            onClick={handleComplete}
+            className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold py-3.5 px-8 rounded-full shadow-xl shadow-emerald-500/30 flex items-center gap-2 hover:shadow-2xl hover:scale-105 active:scale-95 transition-all"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            Fullført
+          </button>
+        </div>
+      )}
+
+      {/* Completion Modal */}
+      {showCompletionModal && completionResult && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-surface rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-5 animate-in zoom-in-95">
+            <div className="text-center">
+              <div className="text-5xl mb-3">🎉</div>
+              <h2 className="text-xl font-black text-primary">Handel fullført!</h2>
+              <p className="text-secondary text-sm mt-1">
+                {completionResult.session?.items.length || 0} varer handlet
+              </p>
+            </div>
+
+            {/* Missed Items Warning */}
+            {completionResult.missedItems.length > 0 && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-2xl p-4">
+                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold text-sm mb-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                  {completionResult.missedItems.length} varer ikke kjøpt
+                </div>
+                <ul className="text-xs text-amber-600 dark:text-amber-300 space-y-1 max-h-24 overflow-auto">
+                  {completionResult.missedItems.map(item => (
+                    <li key={item.id}>• {item.name}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Optional Store Name */}
+            <div>
+              <label className="text-xs font-bold text-secondary uppercase tracking-wide block mb-2">
+                Butikk (valgfritt)
+              </label>
+              <input
+                type="text"
+                value={storeName}
+                onChange={(e) => setStoreName(e.target.value)}
+                placeholder="F.eks. Rema 1000, Kiwi..."
+                className="w-full px-4 py-3 bg-primary border-2 border-primary rounded-xl text-primary placeholder:text-secondary/40 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+              />
+            </div>
+
+            {/* Total */}
+            <div className="flex justify-between items-center py-3 border-t border-b border-primary">
+              <span className="text-secondary font-medium">Totalt brukt</span>
+              <span className="text-2xl font-black text-primary">
+                {(completionResult.session?.totalSpent || 0).toFixed(0)} kr
+              </span>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowCompletionModal(false);
+                  setCompletionResult(null);
+                }}
+                className="flex-1 py-3 px-4 border-2 border-primary rounded-xl font-bold text-secondary hover:bg-primary transition-colors"
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={handleSaveAndReset}
+                disabled={isSaving}
+                className="flex-1 py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                {isSaving ? 'Lagrer...' : 'Lagre & Nullstill'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

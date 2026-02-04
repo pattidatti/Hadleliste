@@ -33,11 +33,56 @@ export interface PriceHistoryRecord {
   updatedBy: string;
 }
 
+// Shopping History Types
+export interface ShoppingSession {
+  id: string;
+  listId: string;
+  listName: string;
+  completedAt: number;
+  completedBy: string;
+  items: SessionItem[];
+  totalSpent: number;
+  missedItems: string[];
+  startedAt?: number;
+  duration?: number;
+  dayOfWeek: number;    // 0-6 (Sunday-Saturday)
+  hourOfDay: number;    // 0-23
+  storeName?: string;
+}
+
+export interface SessionItem {
+  name: string;
+  quantity: number;
+  price: number;
+  category: string;
+}
+
+export interface ShoppingStats {
+  totalTrips: number;
+  totalSpent: number;
+  avgPerTrip: number;
+  frequentItems: { name: string; count: number }[];
+  monthlySpend: { month: string; amount: number }[];
+  preferredDays: number[];
+  preferredHours: number[];
+  avgDuration?: number;
+}
+
+export interface RecurringItem {
+  name: string;
+  avgIntervalDays: number;
+  lastPurchased: number;
+  confidence: number;
+  suggestedNextPurchase: number;
+  daysSinceLastPurchase: number;
+}
+
 export enum AppMode {
   LISTS = 'LISTS',
   PLANNING = 'PLANNING',
   STORE = 'STORE',
-  REGISTER = 'REGISTER'
+  REGISTER = 'REGISTER',
+  DASHBOARD = 'DASHBOARD'
 }
 
 // CATEGORIES is now exported from constants/commonItems.ts

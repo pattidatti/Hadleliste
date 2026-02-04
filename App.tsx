@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppMode } from './types';
 import PlanningView from './components/PlanningView';
 import StoreView from './components/StoreView';
@@ -6,10 +6,15 @@ import LoginScreen from './components/LoginScreen';
 import ShareModal from './components/ShareModal';
 import ListsView from './components/ListsView';
 import LoadingSpinner from './components/LoadingSpinner';
+import DashboardView from './components/DashboardView';
 import { useAuth } from './hooks/useAuth';
 import { useShoppingList } from './hooks/useShoppingList';
+import { useShoppingHistory } from './hooks/useShoppingHistory';
 import ProductsView from './components/ProductsView';
+
 import { useTheme } from './hooks/useTheme';
+import { generateSmartShoppingList } from './services/geminiService';
+import { useToast } from './components/Toast';
 
 const App: React.FC = () => {
   const { user, loading, signIn, logOut } = useAuth();
@@ -33,13 +38,83 @@ const App: React.FC = () => {
     removeCollaborator,
     leaveList,
     isOwner,
-    reorderItems
+    reorderItems,
+    startStoreSession,
+    completeShoppingTrip
   } = useShoppingList(user);
+
+  const { addSession, sessions, stats, loading: historyLoading, getFrequentItems, getRecurringPatterns } = useShoppingHistory(user, lists);
 
   const currentList = lists.find(l => l.id === currentListId);
 
   const [mode, setMode] = useState<AppMode>(AppMode.LISTS);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isGeneratingSmartList, setIsGeneratingSmartList] = useState(false);
+  const { addToast } = useToast();
+
+  const handleGenerateSmartList = async () => {
+    if (!currentListId) {
+      addToast("Du må velge en liste først", "error");
+      return;
+    }
+
+    setIsGeneratingSmartList(true);
+    try {
+      const frequent = getFrequentItems(15);
+      const recurring = getRecurringPatterns();
+      const currentItemNames = items.filter(i => !i.isBought).map(i => i.name);
+
+      // Use actual preferred hours from stats
+      const preferredHours = stats?.preferredHours || [];
+
+      const suggestions = await generateSmartShoppingList(
+        frequent,
+        recurring,
+        currentItemNames,
+        {
+          preferredDays: stats?.preferredDays || [],
+          preferredHours
+        }
+      );
+
+      if (suggestions.length === 0) {
+        addToast("Fant ingen nye forslag akkurat nå", "info");
+      } else {
+        let addedCount = 0;
+        for (const s of suggestions) {
+          // Double check avoiding duplicates
+          if (!currentItemNames.includes(s.name)) {
+            await addItem({
+              name: s.name,
+              quantity: 1,
+              category: s.category,
+              isBought: false,
+              unit: 'stk',
+              price: 0
+            });
+            addedCount++;
+          }
+        }
+        if (addedCount > 0) {
+          addToast(`La til ${addedCount} smarte forslag! 🧠`, "success");
+        } else {
+          addToast("Alle forslag fantes allerede i listen", "info");
+        }
+      }
+    } catch (error) {
+      console.error("Smart generation failed:", error);
+      addToast("Kunne ikke generere liste", "error");
+    } finally {
+      setIsGeneratingSmartList(false);
+    }
+  };
+
+  // Start timing when user enters STORE mode
+  useEffect(() => {
+    if (mode === AppMode.STORE) {
+      startStoreSession();
+    }
+  }, [mode, startStoreSession]);
 
   if (loading) return <LoadingSpinner />;
   if (!user) return <LoginScreen onSignIn={signIn} />;
@@ -77,6 +152,16 @@ const App: React.FC = () => {
                 }`}
             >
               Varer
+            </button>
+            <button
+              onClick={() => setMode(AppMode.DASHBOARD)}
+              className={`w-10 py-2.5 flex items-center justify-center rounded-lg transition-all duration-300 z-10 ${mode === AppMode.DASHBOARD ? 'bg-surface text-accent-primary shadow-sm' : 'text-secondary hover:text-primary'
+                }`}
+              aria-label="Dashboard"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 3v18h18" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" />
+              </svg>
             </button>
           </div>
           <button
@@ -119,6 +204,8 @@ const App: React.FC = () => {
             onRenameList={renameList}
             onDeleteList={deleteList}
             onDeleteLists={deleteLists}
+            onGenerateSmartList={handleGenerateSmartList}
+            isGenerating={isGeneratingSmartList}
             onToggleVisibility={toggleListVisibility}
             onLeaveList={leaveList}
             isOwner={isOwner}
@@ -161,6 +248,8 @@ const App: React.FC = () => {
               updateItem={updateItem}
               removeItem={removeItem}
               onReset={resetBoughtItems}
+              onComplete={completeShoppingTrip}
+              onSaveSession={addSession}
               categoryOrder={currentList?.categoryOrder}
               lastShopperEmail={currentList?.lastShopperEmail}
             />
@@ -174,6 +263,22 @@ const App: React.FC = () => {
               <h2 className="text-2xl font-black text-primary">Alle varer</h2>
             </div>
             <ProductsView />
+          </div>
+        )}
+
+        {mode === AppMode.DASHBOARD && (
+          <div className="px-4 py-6">
+            <div className="mb-6">
+              <p className="text-[10px] font-black text-accent-primary uppercase tracking-widest mb-1">Statistikk</p>
+              <h2 className="text-2xl font-black text-primary">Dashboard</h2>
+            </div>
+            <DashboardView
+              sessions={sessions}
+              stats={stats}
+              loading={historyLoading}
+              frequentItems={getFrequentItems(10)}
+              recurringPatterns={getRecurringPatterns()}
+            />
           </div>
         )}
       </main>

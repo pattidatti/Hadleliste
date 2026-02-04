@@ -15,6 +15,8 @@ interface ListsViewProps {
     isOwner: (id: string) => boolean;
     userEmail: string;
     onShareList: (id: string) => void;
+    onGenerateSmartList: () => Promise<void>;
+    isGenerating: boolean;
 }
 
 const ListsView: React.FC<ListsViewProps> = ({
@@ -29,7 +31,9 @@ const ListsView: React.FC<ListsViewProps> = ({
     isOwner,
     userEmail,
     onShareList,
-    onDeleteLists
+    onDeleteLists,
+    onGenerateSmartList,
+    isGenerating
 }) => {
     const [newListName, setNewListName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
@@ -123,6 +127,29 @@ const ListsView: React.FC<ListsViewProps> = ({
                             </button>
                         </div>
                     </form>
+
+
+                    {/* Smart List Generator */}
+                    <button
+                        onClick={onGenerateSmartList}
+                        disabled={isGenerating}
+                        className="w-full flex items-center justify-center gap-3 py-4 px-5 bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 border border-violet-500/30 rounded-2xl text-violet-600 dark:text-violet-400 font-bold transition-all hover:from-violet-500/20 hover:to-fuchsia-500/20 active:scale-[0.98] disabled:opacity-50"
+                    >
+                        {isGenerating ? (
+                            <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                <span>Genererer...</span>
+                            </div>
+                        ) : (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
+                                    <path d="M5 19l1 3 1-3 3-1-3-1-1-3-1 3-3 1 3 1z" />
+                                </svg>
+                                <span>Generer smart liste</span>
+                            </>
+                        )}
+                    </button>
                 </section>
 
                 {/* List Entries */}
@@ -188,7 +215,7 @@ const ListsView: React.FC<ListsViewProps> = ({
                 </div>
 
             </div>
-        </div>
+        </div >
     );
 };
 

@@ -25,6 +25,14 @@ service cloud.firestore {
           request.auth.token.email in get(/databases/$(database)/documents/lists/$(listId)).data.collaborators
         );
       }
+      
+      // Shopping History - samme tilgang som listen
+      match /shoppingHistory/{sessionId} {
+        allow read, write: if request.auth != null && (
+          get(/databases/$(database)/documents/lists/$(listId)).data.ownerId == request.auth.uid ||
+          request.auth.token.email in get(/databases/$(database)/documents/lists/$(listId)).data.collaborators
+        );
+      }
     }
 
     match /products/{productId} {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ShoppingItem, SharedList } from '../types';
+import { ShoppingItem, SharedList, ShoppingSession, SessionItem } from '../types';
 import {
     db,
     collection,
@@ -43,6 +43,14 @@ export interface UseShoppingListReturn {
     reorderItems: (orderedIds: string[]) => Promise<void>;
     removeItem: (id: string) => Promise<void>;
     resetBoughtItems: () => Promise<boolean>;
+    startStoreSession: () => void;
+    completeShoppingTrip: (storeName?: string) => CompleteTripResult;
+}
+
+export interface CompleteTripResult {
+    success: boolean;
+    missedItems: ShoppingItem[];
+    session?: Omit<ShoppingSession, 'id'>;
 }
 
 export const useShoppingList = (user: User | null): UseShoppingListReturn => {
@@ -53,6 +61,7 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
     });
     const [items, setItems] = useState<ShoppingItem[]>([]);
     const [currentListItemsFetched, setCurrentListItemsFetched] = useState(false);
+    const [storeSessionStart, setStoreSessionStart] = useState<number | null>(null);
 
     // Save currentListId to localStorage whenever it changes
     useEffect(() => {
@@ -311,6 +320,47 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         }
     }, [currentListId, items]);
 
+    // Start timing when user enters Store mode
+    const startStoreSession = useCallback(() => {
+        setStoreSessionStart(Date.now());
+    }, []);
+
+    // Complete a shopping trip and prepare session data
+    const completeShoppingTrip = useCallback((storeName?: string): CompleteTripResult => {
+        if (!currentListId || !user?.email) {
+            return { success: false, missedItems: [] };
+        }
+
+        const now = Date.now();
+        const boughtItems = items.filter(i => i.isBought);
+        const missedItems = items.filter(i => !i.isBought);
+        const listName = lists.find(l => l.id === currentListId)?.name || 'Ukjent liste';
+
+        const sessionItems: SessionItem[] = boughtItems.map(i => ({
+            name: i.name,
+            quantity: i.quantity,
+            price: i.price,
+            category: i.category
+        }));
+
+        const session: Omit<ShoppingSession, 'id'> = {
+            listId: currentListId,
+            listName,
+            completedAt: now,
+            completedBy: user.email.toLowerCase(),
+            items: sessionItems,
+            totalSpent: boughtItems.reduce((sum, i) => sum + (i.price * i.quantity), 0),
+            missedItems: missedItems.map(i => i.name),
+            startedAt: storeSessionStart || now,
+            duration: storeSessionStart ? now - storeSessionStart : undefined,
+            dayOfWeek: new Date(now).getDay(),
+            hourOfDay: new Date(now).getHours(),
+            storeName
+        };
+
+        return { success: true, missedItems, session };
+    }, [currentListId, lists, items, user?.email, storeSessionStart]);
+
     // Legacy updateItems (kept for compatibility during transition if needed, 
     // but we should phase it out)
     const updateItems = useCallback(async (newItems: ShoppingItem[]) => {
@@ -463,6 +513,8 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         reorderItems,
         removeItem,
         resetBoughtItems,
+        startStoreSession,
+        completeShoppingTrip,
         createList,
         inviteCollaborator,
         currentListName,
