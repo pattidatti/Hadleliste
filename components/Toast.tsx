@@ -39,11 +39,11 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
                     <div
                         key={toast.id}
                         className={`
-              p-4 rounded-xl shadow-lg border border-white/10 backdrop-blur-md pointer-events-auto
+              p-4 rounded-xl shadow-lg border border-primary backdrop-blur-md pointer-events-auto
               flex items-center justify-between animate-in slide-in-from-bottom-5 fade-in duration-300
               ${toast.type === 'success' ? 'bg-emerald-600 text-white' :
                                 toast.type === 'error' ? 'bg-red-600 text-white' :
-                                    'bg-slate-800 text-white'}
+                                    'bg-surface/80 text-primary'}
             `}
                     >
                         <div className="flex items-center gap-3">

@@ -111,9 +111,9 @@ const ListCard: React.FC<ListCardProps> = ({
             {/* Main Card Content */}
             <div
                 className={`relative p-4 rounded-3xl border transition-all duration-300 ${isActive
-                    ? 'bg-indigo-600 border-indigo-500 shadow-xl shadow-indigo-200 text-white'
-                    : 'bg-white border-slate-100 hover:border-indigo-100 shadow-sm text-slate-800'
-                    } ${isSelected ? 'ring-4 ring-red-500 border-red-500 bg-red-50' : ''}`}
+                    ? 'bg-accent-primary border-accent-primary shadow-xl shadow-accent-primary/20 text-white'
+                    : 'bg-surface border-primary hover:border-accent-primary/30 shadow-sm text-primary'
+                    } ${isSelected ? 'ring-4 ring-red-500 border-red-500 bg-red-500/10' : ''}`}
                 style={{
                     transform: isOwner && !isRenaming && touchDelta > 0 ? `translateX(-${Math.min(touchDelta, 150)}px)` : 'translateX(0)',
                 }}
@@ -125,7 +125,7 @@ const ListCard: React.FC<ListCardProps> = ({
                             <input
                                 autoFocus
                                 type="text"
-                                className="w-full bg-white/20 border-none outline-none rounded-lg px-2 py-1 text-white font-bold placeholder:text-white/50"
+                                className="w-full bg-white/20 border-none outline-none rounded-lg px-2 py-1 text-white font-bold placeholder:text-white/40"
                                 value={newName}
                                 onClick={(e) => e.stopPropagation()}
                                 onTouchStart={(e) => e.stopPropagation()}
@@ -136,7 +136,7 @@ const ListCard: React.FC<ListCardProps> = ({
                         ) : (
                             <div className="flex items-center gap-3">
                                 {isEditMode && (
-                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-red-600 border-red-600' : 'bg-white border-slate-200'
+                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-red-600 border-red-600' : 'bg-surface border-primary'
                                         }`}>
                                         {isSelected && (
                                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
@@ -156,14 +156,14 @@ const ListCard: React.FC<ListCardProps> = ({
                                         {optimisticName}
                                     </h3>
                                     {list.isPrivate ? (
-                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black uppercase tracking-wider ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'}`}>Privat</span>
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black uppercase tracking-wider ${isActive ? 'bg-white/20 text-white' : 'bg-primary text-secondary'}`}>Privat</span>
                                     ) : (
-                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black uppercase tracking-wider ${isActive ? 'bg-white/20 text-white' : 'bg-indigo-50 text-indigo-400'}`}>Delt</span>
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black uppercase tracking-wider ${isActive ? 'bg-white/20 text-white' : 'bg-accent-primary/10 text-accent-primary'}`}>Delt</span>
                                     )}
                                 </div>
                             </div>
                         )}
-                        <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 opacity-60 ${isActive ? 'text-white' : 'text-slate-400'}`}>
+                        <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 opacity-60 ${isActive ? 'text-white' : 'text-secondary'}`}>
                             {list.ownerEmail === list.ownerEmail && isOwner ? 'Eies av deg' : `Delt av ${list.ownerEmail}`}
                         </p>
                     </div>
@@ -174,7 +174,7 @@ const ListCard: React.FC<ListCardProps> = ({
                                 e.stopPropagation();
                                 setIsMenuOpen(!isMenuOpen);
                             }}
-                            className={`w-10 h-10 flex items-center justify-center rounded-2xl transition-colors ${isActive ? 'hover:bg-white/10 text-white' : 'hover:bg-slate-50 text-slate-400'
+                            className={`w-10 h-10 flex items-center justify-center rounded-2xl transition-colors ${isActive ? 'hover:bg-white/10 text-white' : 'hover:bg-primary text-secondary'
                                 }`}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
@@ -183,10 +183,10 @@ const ListCard: React.FC<ListCardProps> = ({
                         {isMenuOpen && (
                             <>
                                 <div className="fixed inset-0 z-30" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); }} />
-                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-40 animate-in fade-in zoom-in-95 duration-200">
+                                <div className="absolute right-0 mt-2 w-48 bg-surface rounded-2xl shadow-2xl border border-primary py-2 z-40 animate-in fade-in zoom-in-95 duration-200">
                                     <button
                                         onClick={(e) => { e.stopPropagation(); setIsRenaming(true); setIsMenuOpen(false); }}
-                                        className="w-full px-4 py-2.5 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                        className="w-full px-4 py-2.5 text-left text-sm font-bold text-primary hover:bg-primary transition-colors flex items-center gap-2"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>
                                         Gi nytt navn
@@ -194,12 +194,12 @@ const ListCard: React.FC<ListCardProps> = ({
 
 
 
-                                    <div className="h-px bg-slate-100 my-1 mx-2" />
+                                    <div className="h-px bg-primary my-1 mx-2" />
 
                                     {isOwner ? (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); onShare(); }}
-                                            className="w-full px-4 py-2.5 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                            className="w-full px-4 py-2.5 text-left text-sm font-bold text-primary hover:bg-primary transition-colors flex items-center gap-2"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" x2="12" y1="2" y2="15" /></svg>
                                             Del med andre
@@ -208,12 +208,12 @@ const ListCard: React.FC<ListCardProps> = ({
 
                                     {/* Collaborators List */}
                                     {list.collaborators.length > 1 && (
-                                        <div className="px-4 py-2 border-t border-slate-100">
-                                            <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Delt med:</p>
+                                        <div className="px-4 py-2 border-t border-primary">
+                                            <p className="text-[10px] font-black uppercase text-secondary/50 mb-1">Delt med:</p>
                                             <div className="space-y-1">
                                                 {list.collaborators.filter(email => email !== list.ownerEmail).map(email => (
-                                                    <div key={email} className="text-xs text-slate-600 truncate flex items-center gap-1.5">
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-400"></div>
+                                                    <div key={email} className="text-xs text-secondary truncate flex items-center gap-1.5">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-accent-primary"></div>
                                                         {email}
                                                     </div>
                                                 ))}
@@ -221,12 +221,12 @@ const ListCard: React.FC<ListCardProps> = ({
                                         </div>
                                     )}
 
-                                    <div className="h-px bg-slate-100 my-1 mx-2" />
+                                    <div className="h-px bg-primary my-1 mx-2" />
 
                                     {isOwner ? (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setIsConfirmingDelete(true); }}
-                                            className="w-full px-4 py-2.5 text-left text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                            className="w-full px-4 py-2.5 text-left text-sm font-bold text-red-500 hover:bg-red-500/10 transition-colors flex items-center gap-2"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>
                                             Slett liste
@@ -234,7 +234,7 @@ const ListCard: React.FC<ListCardProps> = ({
                                     ) : (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); onLeave(); }}
-                                            className="w-full px-4 py-2.5 text-left text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                            className="w-full px-4 py-2.5 text-left text-sm font-bold text-red-500 hover:bg-red-500/10 transition-colors flex items-center gap-2"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>
                                             Forlat liste
@@ -267,7 +267,7 @@ const ListCard: React.FC<ListCardProps> = ({
                                 }
                             }}
                             disabled={isDeleting}
-                            className="flex-1 bg-white text-red-600 py-2 rounded-xl font-black text-xs uppercase shadow-lg hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
+                            className="flex-1 bg-white text-red-600 py-2 rounded-xl font-black text-xs uppercase shadow-lg hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
                         >
                             {isDeleting ? 'Sletter...' : 'Ja, slett'}
                         </button>

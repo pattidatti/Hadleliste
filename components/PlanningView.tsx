@@ -4,7 +4,6 @@ import { getSmartCategorization, parseReceiptPrices } from '../services/geminiSe
 import { haptics } from '../services/haptics';
 import { CATEGORIES } from '../constants/commonItems';
 import { useToast } from './Toast';
-import CatalogMigration from './CatalogMigration';
 import { useCatalog } from '../hooks/useCatalog';
 import {
   DndContext,
@@ -53,37 +52,42 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, updateItem, removeIte
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-white p-3 rounded-2xl border ${isDragging ? 'border-indigo-300 shadow-xl scale-[1.02]' : 'border-slate-100 shadow-sm'} transition-all duration-200`}
+      className={`bg-surface p-3 rounded-2xl border ${isDragging ? 'border-accent-primary shadow-xl scale-[1.02]' : 'border-primary shadow-sm'} transition-all duration-200`}
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 flex-1">
-          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 text-slate-300 hover:text-indigo-400 transition-colors">
+          <div
+            {...attributes}
+            {...listeners}
+            style={{ touchAction: 'none' }}
+            className="cursor-grab active:cursor-grabbing p-1 text-secondary hover:text-accent-primary transition-colors"
+          >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="5" r="1" /><circle cx="9" cy="12" r="1" /><circle cx="9" cy="19" r="1" /><circle cx="15" cy="5" r="1" /><circle cx="15" cy="12" r="1" /><circle cx="15" cy="19" r="1" /></svg>
           </div>
-          <span className="font-semibold text-slate-800 text-sm">{item.name}</span>
+          <span className="font-semibold text-primary text-sm">{item.name}</span>
         </div>
         <button
           onClick={() => removeItem(item.id)}
-          className="p-1.5 text-slate-300 hover:text-red-500 active:text-red-600 transition-colors"
+          className="p-1.5 text-secondary hover:text-red-500 active:text-red-600 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
         </button>
       </div>
       <div className="flex items-center gap-3">
-        <div className="flex items-center bg-slate-50 rounded-xl p-0.5 border border-slate-100">
+        <div className="flex items-center bg-primary rounded-xl p-0.5 border border-primary">
           <button
             onClick={() => updateItem(item.id, { quantity: Math.max(1, item.quantity - 1) })}
-            className="w-7 h-7 flex items-center justify-center text-indigo-600 font-black hover:bg-white rounded-lg transition-colors"
+            className="w-7 h-7 flex items-center justify-center text-accent-primary font-black hover:bg-surface rounded-lg transition-colors"
           >–</button>
-          <span className="w-8 text-center text-xs font-bold text-slate-700">{item.quantity}</span>
+          <span className="w-8 text-center text-xs font-bold text-primary">{item.quantity}</span>
           <button
             onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}
-            className="w-7 h-7 flex items-center justify-center text-indigo-600 font-black hover:bg-white rounded-lg transition-colors"
+            className="w-7 h-7 flex items-center justify-center text-accent-primary font-black hover:bg-surface rounded-lg transition-colors"
           >+</button>
         </div>
         <div className="flex-1 relative flex items-center gap-2 group/price">
           <div className="relative flex-1">
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400 uppercase group-focus-within/price:text-indigo-500 transition-colors">kr</span>
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-secondary uppercase group-focus-within/price:text-accent-primary transition-colors">kr</span>
             <input
               type="text"
               inputMode="decimal"
@@ -95,12 +99,12 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, updateItem, removeIte
                 if ((val.match(/\./g) || []).length > 1) return;
                 updateItem(item.id, { price: parseFloat(val) || 0 });
               }}
-              className="w-full pl-7 pr-3 py-1.5 bg-slate-50 border-2 border-transparent focus:border-indigo-500/30 focus:bg-white rounded-xl text-xs font-bold text-slate-700 outline-none transition-all duration-200"
+              className="w-full pl-7 pr-3 py-1.5 bg-primary border-2 border-transparent focus:border-accent-primary/30 focus:bg-surface rounded-xl text-xs font-bold text-primary outline-none transition-all duration-200"
             />
           </div>
           {(item.price || 0) > 0 && (
-            <div className="bg-indigo-50 px-2 py-1.5 rounded-xl border border-indigo-100/50">
-              <span className="text-[10px] font-black text-indigo-500">{(item.price * item.quantity).toFixed(0)},-</span>
+            <div className="bg-accent-primary/10 px-2 py-1.5 rounded-xl border border-accent-primary/20">
+              <span className="text-[10px] font-black text-accent-primary">{(item.price * item.quantity).toFixed(0)},-</span>
             </div>
           )}
         </div>
@@ -323,8 +327,6 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
 
   return (
     <div className="flex flex-col gap-8 pb-32">
-      <CatalogMigration />
-
       {/* Search & Add Bar */}
       <section className="w-full relative z-10">
         <div className="flex gap-2">
@@ -342,12 +344,12 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
                 setTimeout(() => setShowSuggestions(false), 200);
               }}
               placeholder="Søk eller legg til ny vare..."
-              className="w-full pl-4 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl shadow-sm focus:ring-2 focus:ring-indigo-500 transition-all outline-none text-sm font-medium"
+              className="w-full pl-4 pr-12 py-3.5 bg-surface border border-primary rounded-2xl shadow-sm focus:ring-2 focus:ring-accent-primary transition-all outline-none text-sm font-medium text-primary placeholder:text-secondary/50"
             />
             <button
               type="submit"
               disabled={!newItemName.trim() || isLoading}
-              className="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-indigo-600 text-white rounded-xl font-bold active:scale-95 transition-transform disabled:opacity-50"
+              className="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-accent-primary text-white rounded-xl font-bold active:scale-95 transition-transform disabled:opacity-50"
             >
               {isLoading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -358,7 +360,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
 
             {/* Floating Suggestions Dropdown */}
             {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-2 bg-white/80 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="absolute left-0 right-0 top-full mt-2 bg-surface/80 backdrop-blur-xl border border-primary/20 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="py-1">
                   {suggestions.map(product => (
                     <button
@@ -368,19 +370,19 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
                         addItem(product.name);
                         setShowSuggestions(false);
                       }}
-                      className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors text-left"
+                      className="w-full px-4 py-3 flex items-center justify-between hover:bg-primary transition-colors text-left"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 flex items-center justify-center bg-indigo-50 rounded-xl text-indigo-600">
+                        <div className="w-8 h-8 flex items-center justify-center bg-accent-primary/10 rounded-xl text-accent-primary">
                           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-slate-800">{product.name}</p>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{product.category}</p>
+                          <p className="text-sm font-bold text-primary">{product.name}</p>
+                          <p className="text-[10px] font-black text-secondary uppercase tracking-widest">{product.category}</p>
                         </div>
                       </div>
                       {product.price > 0 && (
-                        <span className="text-xs font-black text-indigo-500">{product.price},-</span>
+                        <span className="text-xs font-black text-accent-primary">{product.price},-</span>
                       )}
                     </button>
                   ))}
@@ -391,7 +393,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
 
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="p-3.5 bg-white border border-slate-200 rounded-2xl shadow-sm text-indigo-600 hover:bg-indigo-50 active:scale-95 transition-all"
+            className="p-3.5 bg-surface border border-primary rounded-2xl shadow-sm text-accent-primary hover:bg-accent-primary/10 active:scale-95 transition-all"
             title="Skann kvittering"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
@@ -409,18 +411,18 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
 
       {/* Scanner Overlay */}
       {isScanning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-md">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md">
           <div className="text-center space-y-6 px-10">
             <div className="relative w-24 h-24 mx-auto">
-              <div className="absolute inset-0 border-4 border-indigo-500 rounded-2xl animate-pulse"></div>
-              <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-400 shadow-[0_0_15px_rgba(129,140,248,0.8)] animate-[scan_2s_ease-in-out_infinite]"></div>
+              <div className="absolute inset-0 border-4 border-accent-primary rounded-2xl animate-pulse"></div>
+              <div className="absolute top-0 left-0 right-0 h-1 bg-accent-primary shadow-[0_0_15px_rgba(129,140,248,0.8)] animate-[scan_2s_ease-in-out_infinite]"></div>
               <div className="flex items-center justify-center h-full">
                 <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
               </div>
             </div>
             <div>
               <h3 className="text-white font-bold text-xl mb-2">Leser kvittering...</h3>
-              <p className="text-slate-400 text-sm">Gemini analyserer priser og varer for deg.</p>
+              <p className="text-white/60 text-sm">Gemini analyserer priser og varer for deg.</p>
             </div>
           </div>
           <style>{`
@@ -435,13 +437,13 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
       {/* ACTIVE SHOPPING LIST */}
       <section className="space-y-4">
         <div className="flex items-center justify-between px-1">
-          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Valgte varer</h2>
-          <span className="text-xs font-medium text-slate-400">{items.length} varer</span>
+          <h2 className="text-sm font-bold text-primary uppercase tracking-wide">Valgte varer</h2>
+          <span className="text-xs font-medium text-secondary">{items.length} varer</span>
         </div>
 
         {items.length === 0 ? (
-          <div className="py-6 text-center bg-white/50 rounded-3xl border border-dashed border-slate-200">
-            <p className="text-slate-400 text-sm font-medium">Ingen varer valgt ennå.<br />Velg fra katalogen under.</p>
+          <div className="py-6 text-center bg-surface/50 rounded-3xl border border-dashed border-primary">
+            <p className="text-secondary text-sm font-medium">Ingen varer valgt ennå.<br />Velg fra katalogen under.</p>
           </div>
         ) : (
           <DndContext
@@ -457,7 +459,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
               <div className="space-y-4">
                 {activeGrouped.map(group => (
                   <div key={group.name} className="space-y-2">
-                    <h3 className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{group.name}</h3>
+                    <h3 className="px-2 text-[10px] font-bold text-secondary uppercase tracking-widest">{group.name}</h3>
                     {group.items.map(item => (
                       <SortableItem
                         key={item.id}
@@ -475,24 +477,24 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
       </section>
 
       {/* MASTER CATALOG */}
-      <section className="space-y-4 pt-4 border-t border-slate-200">
-        <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide px-1">Katalog</h2>
+      <section className="space-y-4 pt-4 border-t border-primary">
+        <h2 className="text-sm font-bold text-primary uppercase tracking-wide px-1">Katalog</h2>
 
         <div className="space-y-3">
           {catalogGrouped.map(cat => (
             cat.items.length > 0 && (
-              <div key={cat.name} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div key={cat.name} className="bg-surface rounded-2xl border border-primary shadow-sm overflow-hidden">
                 <button
                   onClick={() => toggleCategory(cat.name)}
-                  className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-slate-50 transition-colors"
+                  className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-primary transition-colors"
                 >
-                  <span className="text-sm font-bold text-slate-700">{cat.name} <span className="opacity-50 font-normal">({cat.items.length})</span></span>
+                  <span className="text-sm font-bold text-primary">{cat.name} <span className="opacity-50 font-normal">({cat.items.length})</span></span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="18" height="18"
                     viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
                     strokeLinecap="round" strokeLinejoin="round"
-                    className={`text-slate-400 transition-transform duration-300 ${expandedCategories.includes(cat.name) ? 'rotate-180' : ''}`}
+                    className={`text-secondary transition-transform duration-300 ${expandedCategories.includes(cat.name) ? 'rotate-180' : ''}`}
                   >
                     <path d="m6 9 6 6 6-6" />
                   </svg>
@@ -508,8 +510,8 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
                           onClick={() => addItem(product.name)}
                           disabled={isAdded || isLoading}
                           className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 border ${isAdded
-                            ? 'bg-slate-50 border-slate-100 text-slate-300'
-                            : 'bg-indigo-50 border-indigo-100 text-indigo-700 active:scale-95 shadow-sm active:shadow-none'
+                            ? 'bg-primary border-primary text-secondary/30'
+                            : 'bg-accent-primary/10 border-accent-primary/20 text-accent-primary active:scale-95 shadow-sm active:shadow-none'
                             }`}
                         >
                           {isAdded ? (
@@ -518,7 +520,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
                           )}
                           {product.name}
-                          {product.price > 0 && <span className="text-indigo-400 font-normal ml-0.5">{product.price},-</span>}
+                          {product.price > 0 && <span className="text-accent-primary/60 font-normal ml-0.5">{product.price},-</span>}
                         </button>
                       );
                     })}
@@ -532,16 +534,16 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
 
       {/* Sticky Summary Bar */}
       {items.length > 0 && (
-        <div className="fixed bottom-6 left-4 right-4 max-w-md mx-auto bg-slate-900 text-white p-4 rounded-3xl shadow-2xl flex justify-between items-center z-30 animate-in slide-in-from-bottom-12">
+        <div className="fixed bottom-6 left-4 right-4 max-w-md mx-auto bg-slate-900 border border-white/10 text-white p-4 rounded-3xl shadow-2xl flex justify-between items-center z-30 animate-in slide-in-from-bottom-12">
           <div>
-            <span className="text-slate-400 text-[9px] uppercase font-black tracking-widest block mb-0.5">Estimert Total</span>
-            <span className="text-xl font-black text-white">{totalPrice.toFixed(2)} <span className="text-xs font-normal text-slate-400">kr</span></span>
+            <span className="text-white/40 text-[9px] uppercase font-black tracking-widest block mb-0.5">Estimert Total</span>
+            <span className="text-xl font-black text-white">{totalPrice.toFixed(2)} <span className="text-xs font-normal text-white/40">kr</span></span>
           </div>
           <div className="flex flex-col items-end">
-            <span className="px-2 py-1 bg-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-wider mb-1">
+            <span className="px-2 py-1 bg-accent-primary rounded-lg text-[10px] font-black uppercase tracking-wider mb-1">
               {items.length} {items.length === 1 ? 'vare' : 'varer'}
             </span>
-            <span className="text-[10px] text-slate-400 font-medium">Klar til å handle?</span>
+            <span className="text-[10px] text-white/40 font-medium">Klar til å handle?</span>
           </div>
         </div>
       )}

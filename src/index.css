@@ -1,1 +1,53 @@
 @import "tailwindcss";
+
+@theme {
+    /* Avant-Garde Theme Variables */
+    --bg-primary: var(--app-bg);
+    --bg-surface: var(--app-surface);
+    --text-primary: var(--app-text);
+    --text-secondary: var(--app-text-muted);
+    --border-primary: var(--app-border);
+    --accent-primary: var(--app-accent);
+}
+
+:root {
+    --app-bg: oklch(0.985 0 0);
+    /* slate-50 equivalents in oklch for precision */
+    --app-surface: #ffffff;
+    --app-text: oklch(0.208 0.042 265.755);
+    /* slate-900 */
+    --app-text-muted: oklch(0.551 0.027 264.364);
+    /* slate-500 */
+    --app-border: oklch(0.928 0.006 264.531);
+    /* slate-200 */
+    --app-accent: oklch(0.511 0.262 276.966);
+    /* indigo-600 */
+}
+
+.dark {
+    --app-bg: oklch(0.129 0.042 264.695);
+    /* slate-950 */
+    --app-surface: oklch(0.208 0.042 265.755);
+    /* slate-900 */
+    --app-text: oklch(0.985 0 0);
+    /* slate-50 */
+    --app-text-muted: oklch(0.707 0.022 261.325);
+    /* slate-400 */
+    --app-border: oklch(0.279 0.041 260.031);
+    /* slate-800 */
+    --app-accent: oklch(0.656 0.241 273.815);
+    /* indigo-400 */
+
+    /* Subtle glow for dark mode */
+    --glow-indigo: 0 0 15px rgba(129, 140, 248, 0.15);
+}
+
+/* Global Transitions for Theme Swaps */
+@layer base {
+
+    *,
+    *::before,
+    *::after {
+        @apply transition-[background-color, border-color, color, box-shadow, fill, stroke] duration-300 ease-in-out;
+    }
+}

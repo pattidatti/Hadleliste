@@ -30,7 +30,7 @@ const SwipeableItem = ({ item, onToggle, onDelete }: { item: ShoppingItem, onTog
 
       {/* Foreground Content */}
       <div
-        className={`bg-white flex items-center shadow-sm border border-slate-100 relative z-10 transition-transform duration-75 active:bg-slate-50`}
+        className={`bg-surface flex items-center shadow-sm border border-primary relative z-10 transition-transform duration-75 active:bg-primary`}
         style={{ transform: `translateX(-${offset}px)` }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
@@ -40,21 +40,21 @@ const SwipeableItem = ({ item, onToggle, onDelete }: { item: ShoppingItem, onTog
         <div className="p-4 flex items-center gap-3 flex-1 min-w-0">
           <div
             className={`w-6 h-6 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all flex-shrink-0 ${item.isBought
-              ? 'bg-green-500 border-green-500 scale-105 shadow-lg shadow-green-100'
-              : 'border-slate-300'
+              ? 'bg-green-500 border-green-500 scale-105 shadow-lg shadow-green-100/20'
+              : 'border-secondary/30'
               }`}
           >
             {item.isBought && <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
           </div>
           <div className="flex-1 truncate">
-            <span className={`font-medium text-slate-800 ${item.isBought ? 'line-through text-slate-400' : ''}`}>
+            <span className={`font-medium text-primary ${item.isBought ? 'line-through text-secondary/30' : ''}`}>
               {item.name}
             </span>
             {item.quantity > 1 && (
-              <span className={`text-xs ml-2 font-bold ${item.isBought ? 'text-slate-300' : 'text-slate-500'}`}>x{item.quantity}</span>
+              <span className={`text-xs ml-2 font-bold ${item.isBought ? 'text-secondary/20' : 'text-secondary/60'}`}>x{item.quantity}</span>
             )}
           </div>
-          <div className={`text-[10px] font-black tracking-widest uppercase transition-opacity ${item.isBought ? 'opacity-30' : 'text-slate-400'}`}>
+          <div className={`text-[10px] font-black tracking-widest uppercase transition-opacity ${item.isBought ? 'opacity-30' : 'text-secondary/50'}`}>
             {item.category === 'Annet' ? '' : item.category}
           </div>
         </div>
@@ -142,19 +142,19 @@ const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook
     <div className="space-y-6 pb-12 animate-in fade-in slide-in-from-bottom-2">
       {/* Sticky Summary, Progress, and Search Header */}
       {items.length > 0 && (
-        <div className="sticky top-0 z-10 -mx-4 px-4 pt-2 pb-4 bg-slate-50/95 backdrop-blur-md space-y-3 shadow-sm border-b border-slate-200/50">
+        <div className="sticky top-0 z-10 -mx-4 px-4 pt-2 pb-4 bg-primary/95 backdrop-blur-md space-y-3 shadow-sm border-b border-primary/50">
           {/* Progress Bar & Search Input Container */}
           <div className="space-y-3">
-            <div className="flex justify-between items-end text-xs font-black text-slate-500 uppercase tracking-widest px-1">
+            <div className="flex justify-between items-end text-xs font-black text-secondary uppercase tracking-widest px-1">
               <div className="flex flex-col gap-1">
                 <span>{boughtItems} av {totalItems} handlet</span>
-                <span className="text-indigo-600">{Math.round(progress)}% fullført</span>
+                <span className="text-accent-primary">{Math.round(progress)}% fullført</span>
               </div>
               {boughtItems > 0 && (
                 <button
                   onClick={handleReset}
                   disabled={isResetting}
-                  className="bg-white border-2 border-slate-200 px-3 py-1.5 rounded-lg text-[9px] hover:bg-slate-50 active:scale-95 transition-all flex items-center gap-1.5 text-slate-600"
+                  className="bg-surface border-2 border-primary px-3 py-1.5 rounded-lg text-[9px] hover:bg-primary active:scale-95 transition-all flex items-center gap-1.5 text-secondary"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M3 21v-5h5" /></svg>
                   {isResetting ? 'Nullstiller...' : 'Nullstill'}
@@ -162,9 +162,9 @@ const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook
               )}
             </div>
 
-            <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
+            <div className="h-3 bg-primary/80 border border-primary rounded-full overflow-hidden">
               <div
-                className="h-full bg-indigo-500 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(99,102,241,0.5)]"
+                className="h-full bg-accent-primary transition-all duration-500 ease-out shadow-[0_0_10px_rgba(99,102,241,0.5)]"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -186,9 +186,9 @@ const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook
                 placeholder="Finn varer..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all shadow-sm"
+                className="w-full pl-10 pr-4 py-3 bg-surface border-2 border-primary rounded-xl text-sm text-primary placeholder:text-secondary/50 focus:ring-2 focus:ring-accent-primary focus:border-accent-primary outline-none transition-all shadow-sm"
               />
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary/50">
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
               </svg>
             </div>
@@ -200,14 +200,14 @@ const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook
       <div className="space-y-6 pt-2">
         {items.length === 0 && (
           <div className="text-center py-12 opacity-50">
-            <p className="text-slate-400">Listen er tom</p>
+            <p className="text-secondary">Listen er tom</p>
           </div>
         )}
 
         {/* Active Items Grouped */}
         {groupedActive.map(group => (
           <div key={group.name} className="space-y-2">
-            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest px-1 sticky top-36 z-0 mix-blend-multiply">{group.name}</h3>
+            <h3 className="text-xs font-black text-secondary uppercase tracking-widest px-1 sticky top-36 z-0 mix-blend-multiply dark:mix-blend-screen">{group.name}</h3>
             {group.items.map(item => (
               <SwipeableItem
                 key={item.id}
@@ -221,8 +221,8 @@ const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook
 
         {/* Completed Items */}
         {completedItems.length > 0 && (
-          <div className="pt-8 border-t border-slate-200 border-dashed">
-            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest px-1 mb-3">Ferdig handlet</h3>
+          <div className="pt-8 border-t border-primary border-dashed">
+            <h3 className="text-xs font-black text-secondary uppercase tracking-widest px-1 mb-3">Ferdig handlet</h3>
             <div className="space-y-2 opacity-60 grayscale transition-all hover:grayscale-0 hover:opacity-100">
               {completedItems.map(item => (
                 <SwipeableItem

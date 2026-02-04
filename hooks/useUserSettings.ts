@@ -78,11 +78,23 @@ export const useUserSettings = () => {
         });
     }, [user]);
 
+    // Update theme choice
+    const updateTheme = useCallback(
+        async (theme: 'light' | 'dark') => {
+            if (!user) return;
+
+            const userDocRef = doc(db, 'users', user.uid);
+            await updateDoc(userDocRef, { theme });
+        },
+        [user]
+    );
+
     return {
         settings,
         isLoading,
         updateCategoryOrder,
         setLastUsedList,
+        updateTheme,
         resetLearning,
     };
 };

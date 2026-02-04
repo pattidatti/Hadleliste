@@ -67,4 +67,5 @@ export interface UserSettings {
   globalCategoryOrder: string[];
   lastUsedListId?: string;
   routeAutoSync?: boolean;
+  theme?: 'light' | 'dark';
 }
