@@ -305,10 +305,23 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
 
   const totalPrice = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
-  const activeGrouped = CATEGORIES.map(cat => ({
-    name: cat,
-    items: items.filter(i => i.category === cat)
-  })).filter(group => group.items.length > 0);
+  // Robust grouping handling uncategorized items
+  const groupedItems = new Set<string>();
+
+  const activeGrouped = CATEGORIES.map(cat => {
+    const catItems = items.filter(i => i.category === cat);
+    catItems.forEach(i => groupedItems.add(i.id));
+    return {
+      name: cat,
+      items: catItems
+    };
+  }).filter(group => group.items.length > 0);
+
+  // Catch leftovers
+  const leftovers = items.filter(i => !groupedItems.has(i.id));
+  if (leftovers.length > 0) {
+    activeGrouped.push({ name: 'Andre varer', items: leftovers });
+  }
 
   // Group GLOBAL products for the catalog view
   const catalogGrouped = CATEGORIES.map(cat => ({

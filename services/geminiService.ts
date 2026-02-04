@@ -8,7 +8,7 @@ export const getSmartCategorization = async (itemName: string): Promise<string> 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-1.5-flash',
-      contents: `Kategoriser følgende matvare eller husholdningsartikkel: "${itemName}". Svar med kun ett kategorinavn fra denne listen: "Grønnsaker & Frukt", "Meieri & Egg", "Kjøtt & Fisk", "Brød & Bakevarer", "Frysevarer", "Tørrvarer", "Drikke", "Snacks & Godteri", "Hus & Hjem", "Personlig pleie", "Annet".`,
+      contents: `Kategoriser følgende matvare eller husholdningsartikkel: "${itemName}". Svar med kun ett kategorinavn fra denne listen: "Basisvarer", "Ost & Pålegg", "Middag & Kjøtt", "Pizza & Bakst", "Wok & Krydder", "Taco", "Barn & Hygiene", "Hus & Hjem", "Annet".`,
     });
     return response.text.trim();
   } catch (error) {
@@ -84,7 +84,6 @@ export const parseReceiptPrices = async (base64Image: string): Promise<{ name: s
 
 export interface SmartListSuggestion {
   name: string;
-  category: string;
   reason: 'frequent' | 'recurring' | 'seasonal' | 'complementary';
   confidence: number;
 }
@@ -93,7 +92,8 @@ export const generateSmartShoppingList = async (
   frequentItems: { name: string; count: number }[],
   recurringPatterns: RecurringItem[],
   currentListItems: string[],
-  shoppingPatterns: { preferredDays: number[]; preferredHours: number[] }
+  shoppingPatterns: { preferredDays: number[]; preferredHours: number[] },
+  availableItems: string[]
 ): Promise<SmartListSuggestion[]> => {
   try {
     const overdue = recurringPatterns
@@ -102,21 +102,26 @@ export const generateSmartShoppingList = async (
       .slice(0, 10);
 
     const prompt = `
-Du er en intelligent handleliste-assistent. Analyser brukerens mønstre og foreslå varer.
+Du er en intelligent handleliste-assistent for en familie.
+Din oppgave er å velge relevante varer fra vår EKSISTERENDE varekatalog.
+Du må IKKE finne på nye varer. Du må IKKE gjette priser.
 
-**Data:**
-1. **Ofte kjøpt (Topp 15):** ${frequentItems.slice(0, 15).map(i => `${i.name} (${i.count}x)`).join(', ')}
-2. **Forfalt/Mønster (Høy prioritet):** ${overdue.map(p => `${p.name} (kjøpt hver ${p.avgIntervalDays}. dag, sist for ${p.daysSinceLastPurchase} dager siden)`).join(', ') || 'Ingen'}
-3. **Handle-tidspunkt:** Vanligste dager: ${shoppingPatterns.preferredDays.join(', ')}. Timer: ${shoppingPatterns.preferredHours.join(', ')}.
-4. **Allerede på listen:** ${currentListItems.length > 0 ? currentListItems.join(', ') : 'Listen er tom'}
+**Kontekst:**
+1. **Ofte kjøpt:** ${frequentItems.slice(0, 15).map(i => `${i.name} (${i.count}x)`).join(', ')}
+2. **Mønster (Overtid):** ${overdue.map(p => `${p.name} (kjøpt hver ${p.avgIntervalDays}. dag)`).join(', ') || 'Ingen'}
+3. **Allerede på listen (Ignorer disse):** ${currentListItems.length > 0 ? currentListItems.join(', ') : 'Listen er tom'}
+
+**VAREKATALOG (Velg KUN fra denne listen):**
+${availableItems.join(', ')}
 
 **Oppgave:**
-Foreslå 5-10 varer som mangler på listen. Prioriter varer som "burde" vært kjøpt nå basert på mønster, deretter basisvarer.
-Unngå varer som allerede er på listen.
+Velg 5-15 varer fra VAREKATALOGEN som familien sannsynligvis trenger nå.
+Baser valget på historikk og sunn fornuft (hva passer sammen med det de ofte kjøper?).
+Hvis katalogen er tom eller veldig liten, kan du foreslå generiske basisvarer (Banan, Melk, Brød, Egg).
 
 Returner JSON:
 [
-  { "name": "Varenavn", "category": "Kategori", "reason": "recurring" | "frequent" | "seasonal" | "complementary", "confidence": 0.0-1.0 }
+  { "name": "Eksakt Varenavn fra Katalogen", "reason": "recurring" | "frequent" | "seasonal" | "complementary", "confidence": 0.0-1.0 }
 ]
 `;
 
@@ -131,11 +136,11 @@ Returner JSON:
             type: Type.OBJECT,
             properties: {
               name: { type: Type.STRING },
-              category: { type: Type.STRING },
+              // We don't ask AI for category or price anymore, we look it up in DB
               reason: { type: Type.STRING, enum: ["frequent", "recurring", "seasonal", "complementary"] },
               confidence: { type: Type.NUMBER }
             },
-            required: ["name", "category", "reason", "confidence"]
+            required: ["name", "reason", "confidence"]
           }
         }
       }

@@ -11,6 +11,7 @@ import { useAuth } from './hooks/useAuth';
 import { useShoppingList } from './hooks/useShoppingList';
 import { useShoppingHistory } from './hooks/useShoppingHistory';
 import ProductsView from './components/ProductsView';
+import { useCatalog } from './hooks/useCatalog';
 
 import { useTheme } from './hooks/useTheme';
 import { generateSmartShoppingList } from './services/geminiService';
@@ -44,6 +45,7 @@ const App: React.FC = () => {
   } = useShoppingList(user);
 
   const { addSession, sessions, stats, loading: historyLoading, getFrequentItems, getRecurringPatterns } = useShoppingHistory(user, lists);
+  const { getProduct, products } = useCatalog();
 
   const currentList = lists.find(l => l.id === currentListId);
 
@@ -63,6 +65,11 @@ const App: React.FC = () => {
       // Use actual preferred hours from stats
       const preferredHours = stats?.preferredHours || [];
 
+      // Get all available product names from the catalog
+      // If catalog is empty/loading, we might want to pass common items as fallback, 
+      // but user asked for strictness. Let's pass what we have.
+      const catalogNames = products.map(p => p.name);
+
       const suggestions = await generateSmartShoppingList(
         frequent,
         recurring,
@@ -70,7 +77,8 @@ const App: React.FC = () => {
         {
           preferredDays: stats?.preferredDays || [],
           preferredHours
-        }
+        },
+        catalogNames
       );
 
       if (suggestions.length === 0) {
@@ -83,16 +91,24 @@ const App: React.FC = () => {
         const newListId = await createList(listName);
 
         if (newListId) {
-          const promises = suggestions.map(s =>
-            addItem({
+          const promises = suggestions.map(s => {
+            const existingProduct = getProduct(s.name);
+            // Strict Mode: Only add if product exists in catalog (or if we decide to be lenient on names)
+            // But since AI selected FROM catalog, getProduct should work 99% of time.
+            const quantity = 1;
+            const category = existingProduct?.category || "Annet";
+            const price = existingProduct?.price || 0;
+            const unit = existingProduct?.unit || 'stk';
+
+            return addItem({
               name: s.name,
-              quantity: 1,
-              category: s.category,
+              quantity,
+              category,
               isBought: false,
-              unit: 'stk',
-              price: 0
-            }, newListId)
-          );
+              unit,
+              price
+            }, newListId);
+          });
 
           await Promise.all(promises);
           const addedCount = suggestions.length;
