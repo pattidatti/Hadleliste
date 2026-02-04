@@ -28,7 +28,7 @@ export interface UseShoppingListReturn {
     setCurrentListId: (id: string | null) => void;
     items: ShoppingItem[];
     updateItems: (items: ShoppingItem[]) => Promise<void>; // Deprecated
-    createList: (name: string) => Promise<void>;
+    createList: (name: string) => Promise<string | null>;
     inviteCollaborator: (email: string) => Promise<boolean>;
     currentListName: string;
     renameList: (id: string, newName: string) => Promise<boolean>;
@@ -38,7 +38,7 @@ export interface UseShoppingListReturn {
     removeCollaborator: (listId: string, email: string) => Promise<boolean>;
     leaveList: (id: string) => Promise<boolean>;
     isOwner: (listId: string) => boolean;
-    addItem: (item: Omit<ShoppingItem, 'id' | 'createdAt' | 'sortOrder'>) => Promise<void>;
+    addItem: (item: Omit<ShoppingItem, 'id' | 'createdAt' | 'sortOrder'>, targetListId?: string) => Promise<void>;
     updateItem: (id: string, updates: Partial<ShoppingItem>) => Promise<void>;
     reorderItems: (orderedIds: string[]) => Promise<void>;
     removeItem: (id: string) => Promise<void>;
@@ -184,8 +184,8 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         }
     }, [currentListId, currentListItemsFetched, lists]);
 
-    const createList = useCallback(async (name: string) => {
-        if (!user || !user.email) return;
+    const createList = useCallback(async (name: string): Promise<string | null> => {
+        if (!user || !user.email) return null;
 
         try {
             const userEmail = user.email.toLowerCase();
@@ -201,20 +201,23 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
 
             const docRef = await addDoc(collection(db, "lists"), newList);
             setCurrentListId(docRef.id);
+            return docRef.id;
         } catch (e) {
             console.error("Failed to create list:", e);
+            return null;
         }
     }, [user]);
 
-    const addItem = useCallback(async (item: Omit<ShoppingItem, 'id' | 'createdAt' | 'sortOrder'>) => {
-        if (!currentListId) return;
+    const addItem = useCallback(async (item: Omit<ShoppingItem, 'id' | 'createdAt' | 'sortOrder'>, targetListId?: string) => {
+        const listToUse = targetListId || currentListId;
+        if (!listToUse) return;
         const id = crypto.randomUUID();
-        // Calculate next sortOrder
-        const maxSortOrder = items.length > 0
+        // Calculate next sortOrder (approximate if targeting external list)
+        const maxSortOrder = (items.length > 0 && listToUse === currentListId)
             ? Math.max(...items.map(i => i.sortOrder || 0))
             : 0;
 
-        await setDoc(doc(db, "lists", currentListId, "items", id), {
+        await setDoc(doc(db, "lists", listToUse, "items", id), {
             ...item,
             id,
             createdAt: Date.now(),
@@ -222,10 +225,10 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         });
 
         // Update parent updatedAt
-        await updateDoc(doc(db, "lists", currentListId), {
+        await updateDoc(doc(db, "lists", listToUse), {
             updatedAt: serverTimestamp()
         });
-    }, [currentListId]);
+    }, [currentListId, items]);
 
     const updateItem = useCallback(async (id: string, updates: Partial<ShoppingItem>) => {
         if (!currentListId) return;
