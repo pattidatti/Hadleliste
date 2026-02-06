@@ -379,18 +379,49 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
     const inviteCollaborator = useCallback(async (email: string): Promise<boolean> => {
         if (!currentListId || !email.trim()) return false;
 
+        const cleanEmail = email.trim().toLowerCase();
+        // Don't invite yourself
+        if (user?.email && cleanEmail === user.email.toLowerCase()) return false;
+
         try {
-            await updateDoc(doc(db, "lists", currentListId), {
-                collaborators: arrayUnion(email.trim().toLowerCase()),
+            const batch = writeBatch(db);
+            const listRef = doc(db, "lists", currentListId);
+
+            // 1. Add to collaborators list
+            batch.update(listRef, {
+                collaborators: arrayUnion(cleanEmail),
                 isPrivate: false,
                 updatedAt: serverTimestamp()
             });
+
+            // 2. Queue email notification
+            const mailRef = doc(collection(db, "mail"));
+            const currentList = lists.find(l => l.id === currentListId);
+            const listName = currentList?.name || "en handleliste";
+
+            batch.set(mailRef, {
+                to: [cleanEmail],
+                message: {
+                    subject: `Invitasjon til handleliste: ${listName}`,
+                    html: `
+                        <div style="font-family: sans-serif; padding: 20px; color: #333;">
+                            <h2>Du har blitt invitert!</h2>
+                            <p>${user?.email || 'En bruker'} har invitert deg til å samarbeide på handlelisten <strong>${listName}</strong>.</p>
+                            <p>Åpne appen for å se listen:</p>
+                            <a href="https://handleliste-app.web.app" style="display: inline-block; background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Åpne Handleliste</a>
+                        </div>
+                    `,
+                },
+                createdAt: serverTimestamp()
+            });
+
+            await batch.commit();
             return true;
         } catch (e) {
             console.error("Failed to invite collaborator:", e);
             return false;
         }
-    }, [currentListId]);
+    }, [currentListId, lists, user]);
 
     const renameList = useCallback(async (id: string, newName: string): Promise<boolean> => {
         if (!newName.trim()) return false;

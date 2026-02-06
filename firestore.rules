@@ -72,5 +72,12 @@ service cloud.firestore {
       // Hard delete forbidden - use soft delete (deletedAt)
       allow delete: if false; 
     }
+
+    match /mail/{emailId} {
+      // Allow users to queue emails (Trigger Email Extension listens here)
+      allow create: if request.auth != null;
+      // No read/update/delete access for users - only admin/system needs this
+      allow read, update, delete: if false;
+    }
   }
 }
