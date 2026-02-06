@@ -408,7 +408,7 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
                             <h2>Du har blitt invitert!</h2>
                             <p>${user?.email || 'En bruker'} har invitert deg til å samarbeide på handlelisten <strong>${listName}</strong>.</p>
                             <p>Åpne appen for å se listen:</p>
-                            <a href="https://handleliste-app.web.app" style="display: inline-block; background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Åpne Handleliste</a>
+                            <a href="https://handleliste.haaland.de" style="display: inline-block; background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Åpne Handleliste</a>
                         </div>
                     `,
                 },
