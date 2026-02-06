@@ -53,6 +53,24 @@ service cloud.firestore {
     match /users/{userId} {
       // User settings - kun brukeren selv kan lese/skrive
       allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Personal Store Layouts - private to user
+      match /storeLayouts/{storeId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    match /stores/{storeId} {
+      // Global Stores - Public Read, Owner Write
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && (
+        resource.data.ownerId == request.auth.uid || 
+        // Allow soft delete logic if needed, but strictly controlled
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedAt']))
+      );
+      // Hard delete forbidden - use soft delete (deletedAt)
+      allow delete: if false; 
     }
   }
 }

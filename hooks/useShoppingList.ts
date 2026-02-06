@@ -45,6 +45,7 @@ export interface UseShoppingListReturn {
     resetBoughtItems: () => Promise<boolean>;
     startStoreSession: () => void;
     completeShoppingTrip: (storeName?: string) => CompleteTripResult;
+    setActiveStore: (storeId: string) => Promise<void>;
 }
 
 export interface CompleteTripResult {
@@ -505,6 +506,18 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
 
     const currentListName = lists.find(l => l.id === currentListId)?.name || "Laster...";
 
+    const setActiveStore = useCallback(async (storeId: string) => {
+        if (!currentListId) return;
+        try {
+            await updateDoc(doc(db, "lists", currentListId), {
+                activeStoreId: storeId,
+                updatedAt: serverTimestamp()
+            });
+        } catch (e) {
+            console.error("Failed to set active store:", e);
+        }
+    }, [currentListId]);
+
     return {
         lists,
         currentListId,
@@ -527,7 +540,8 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         toggleListVisibility,
         removeCollaborator,
         leaveList,
-        isOwner
+        isOwner,
+        setActiveStore
     };
 };
 

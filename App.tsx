@@ -46,7 +46,8 @@ const App: React.FC = () => {
     isOwner,
     reorderItems,
     startStoreSession,
-    completeShoppingTrip
+    completeShoppingTrip,
+    setActiveStore
   } = useShoppingList(user);
 
   const { addSession, sessions, stats, loading: historyLoading, getFrequentItems, getRecurringPatterns } = useShoppingHistory(user, lists);
@@ -262,6 +263,8 @@ const App: React.FC = () => {
               updateItem={updateItem}
               removeItem={removeItem}
               reorderItems={reorderItems}
+              activeStoreId={currentList?.activeStoreId}
+              setActiveStore={setActiveStore}
             />
           </div>
         )}
@@ -277,6 +280,7 @@ const App: React.FC = () => {
               onSaveSession={addSession}
               categoryOrder={currentList?.categoryOrder}
               lastShopperEmail={currentList?.lastShopperEmail}
+              activeStoreId={currentList?.activeStoreId}
             />
           </div>
         )}

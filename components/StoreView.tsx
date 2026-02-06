@@ -6,6 +6,8 @@ import { haptics } from '../services/haptics';
 import { useCatalog } from '../hooks/useCatalog';
 import { useToast } from './Toast';
 import { CompleteTripResult } from '../hooks/useShoppingList';
+import { StoreSelector } from './StoreSelector';
+import { useStores } from '../hooks/useStores';
 
 interface StoreViewProps {
   items: ShoppingItem[];
@@ -16,6 +18,7 @@ interface StoreViewProps {
   onSaveSession: (listId: string, session: Omit<ShoppingSession, 'id'>) => Promise<void>;
   categoryOrder?: string[]; // Learned category order from store-pathing
   lastShopperEmail?: string;
+  activeStoreId?: string;
 }
 
 const SwipeableItem = ({ item, onToggle, onDelete }: { item: ShoppingItem, onToggle: (id: string) => void, onDelete: (id: string) => void }) => {
@@ -66,15 +69,35 @@ const SwipeableItem = ({ item, onToggle, onDelete }: { item: ShoppingItem, onTog
   );
 };
 
-const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook, removeItem: removeItemHook, onReset, onComplete, onSaveSession, categoryOrder, lastShopperEmail }) => {
+const StoreView: React.FC<StoreViewProps> = ({
+  items,
+  updateItem: updateItemHook,
+  removeItem: removeItemHook,
+  onReset,
+  onComplete,
+  onSaveSession,
+  categoryOrder,
+  lastShopperEmail,
+  activeStoreId
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isResetting, setIsResetting] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [completionResult, setCompletionResult] = useState<CompleteTripResult | null>(null);
   const [storeName, setStoreName] = useState('');
+  const [selectedStore, setSelectedStore] = useState<{ id: string, name: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const { addOrUpdateProduct } = useCatalog();
   const { addToast } = useToast();
+  const { myStores, updateMyLayout } = useStores();
+
+  // Pre-select store if activeStoreId is set
+  React.useEffect(() => {
+    if (activeStoreId && myStores.length > 0) {
+      const store = myStores.find(s => s.id === activeStoreId);
+      if (store) setSelectedStore({ id: store.id, name: store.name });
+    }
+  }, [activeStoreId, myStores]);
 
   const toggleBought = async (id: string) => {
     const item = items.find(i => i.id === id);
@@ -124,13 +147,52 @@ const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook
   const handleSaveAndReset = async () => {
     if (!completionResult?.session) return;
 
+    // Use selected store ID and Name
+    const rawSession = {
+      ...completionResult.session,
+      storeName: selectedStore?.name || undefined,
+      storeId: selectedStore?.id || undefined,
+    };
+
+    // Strip undefined values to satisfy Firestore and avoid TS nullability issues
+    const sessionToSave = JSON.parse(JSON.stringify(rawSession));
+
     setIsSaving(true);
     try {
-      await onSaveSession(completionResult.session.listId, completionResult.session);
+      await onSaveSession(sessionToSave.listId, sessionToSave);
+
+      // SMART LEARNING: If a store is selected, we learn the category order!
+      if (selectedStore?.id && sessionToSave.items.length > 0) {
+        // Extract category order from the check sequence (assuming items are checked in order)
+        // Note: isBought items are already in completionResult.
+        // We need to know the *order* they were checked.
+        // If the session items preserve order (which they might if derived from list), we can use that.
+        // However, `useShoppingList` logic for `resetBoughtItems` already calculates this based on `checkedAt`.
+
+        // But here we are in StoreView. We can call `updateMyLayout`.
+        // We need the items sorted by check time. 
+        // The `completionResult.session.items` doesn't have `checkedAt`.
+        // But `items` (props) does.
+
+        const boughtItemsWithTime = items
+          .filter(i => i.isBought && i.checkedAt)
+          .sort((a, b) => (a.checkedAt || 0) - (b.checkedAt || 0));
+
+        const learnedOrder: string[] = [];
+        boughtItemsWithTime.forEach(i => {
+          if (!learnedOrder.includes(i.category)) learnedOrder.push(i.category);
+        });
+
+        if (learnedOrder.length > 0) {
+          await updateMyLayout(selectedStore.id, learnedOrder);
+          addToast(`Lærte ruten din i ${selectedStore.name}! 🧠`, 'success');
+        }
+      }
+
       await onReset();
       setShowCompletionModal(false);
       setCompletionResult(null);
-      setStoreName('');
+      setSelectedStore(null);
       addToast('Handelen er lagret! 🎉', 'success');
       haptics.success();
     } catch (error) {
@@ -152,10 +214,15 @@ const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook
   const activeItems = filteredItems.filter(i => !i.isBought);
   const completedItems = filteredItems.filter(i => i.isBought);
 
-  // Smart Sort: Use learned categoryOrder if available, fallback to default CATEGORIES
-  const effectiveCategoryOrder = categoryOrder && categoryOrder.length > 0
-    ? [...categoryOrder, ...CATEGORIES.filter(c => !categoryOrder.includes(c))]
-    : CATEGORIES;
+  // Smart Sort: Prioritize Active Store Layout -> List Category Order -> Default
+  const activeStore = myStores.find(s => s.id === (selectedStore?.id || activeStoreId));
+  const storeLayout = activeStore?.layout;
+
+  const effectiveCategoryOrder = storeLayout && storeLayout.length > 0
+    ? [...storeLayout, ...CATEGORIES.filter(c => !storeLayout.includes(c))]
+    : categoryOrder && categoryOrder.length > 0
+      ? [...categoryOrder, ...CATEGORIES.filter(c => !categoryOrder.includes(c))]
+      : CATEGORIES;
 
   // Group active items by category using learned order
   const groupedActive = effectiveCategoryOrder.map(cat => ({
@@ -180,6 +247,14 @@ const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook
         <div className="sticky top-0 z-10 -mx-4 px-4 pt-2 pb-4 bg-primary/95 backdrop-blur-md space-y-3 shadow-sm border-b border-primary/50">
           {/* Progress Bar & Search Input Container */}
           <div className="space-y-3">
+            {/* Store Name Header */}
+            {activeStore && (
+              <div className="flex items-center gap-2 px-1">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: activeStore.color || '#ccc' }} />
+                <span className="text-sm font-black text-primary uppercase tracking-wide">{activeStore.name}</span>
+              </div>
+            )}
+
             <div className="flex justify-between items-end text-xs font-black text-secondary uppercase tracking-widest px-1">
               <div className="flex flex-col gap-1">
                 <span>{boughtItems} av {totalItems} handlet</span>
@@ -320,14 +395,12 @@ const StoreView: React.FC<StoreViewProps> = ({ items, updateItem: updateItemHook
             {/* Optional Store Name */}
             <div>
               <label className="text-xs font-bold text-secondary uppercase tracking-wide block mb-2">
-                Butikk (valgfritt)
+                Hvor handlet du?
               </label>
-              <input
-                type="text"
-                value={storeName}
-                onChange={(e) => setStoreName(e.target.value)}
-                placeholder="F.eks. Rema 1000, Kiwi..."
-                className="w-full px-4 py-3 bg-primary border-2 border-primary rounded-xl text-primary placeholder:text-secondary/40 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+              <StoreSelector
+                variant="minimal"
+                activeStoreId={selectedStore?.id}
+                onSelect={(store) => setSelectedStore({ id: store.id, name: store.name })}
               />
             </div>
 

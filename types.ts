@@ -47,7 +47,8 @@ export interface ShoppingSession {
   duration?: number;
   dayOfWeek: number;    // 0-6 (Sunday-Saturday)
   hourOfDay: number;    // 0-23
-  storeName?: string;
+  storeName?: string;   // Legacy fallback
+  storeId?: string;     // Reference to Store entity
 }
 
 export interface SessionItem {
@@ -102,6 +103,7 @@ export interface SharedList {
   updatedAt: number;
   isPrivate?: boolean;
   deletedAt?: number;
+  activeStoreId?: string; // Currently selected store for planning
   // Store-Pathing fields
   categoryOrder?: string[];
   itemPathWeights?: Record<string, number>;
@@ -113,4 +115,24 @@ export interface UserSettings {
   lastUsedListId?: string;
   routeAutoSync?: boolean;
   theme?: 'light' | 'dark';
+}
+
+// --- STORE MANAGEMENT ---
+
+export interface Store {
+  id: string;
+  name: string;
+  ownerId: string; // The creator
+  defaultCategoryOrder: string[];
+  logo?: string;
+  color?: string; // Auto-generated pastel color if missing
+  deletedAt?: number; // Soft delete - hides from global search
+  createdAt: number;
+}
+
+export interface UserStoreLayout {
+  storeId: string;
+  categoryOrder: string[];
+  lastUsed: number;
+  visitCount: number; // For "Frequently Used" sorting
 }

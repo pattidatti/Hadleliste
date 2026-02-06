@@ -26,7 +26,8 @@ import {
   serverTimestamp,
   collectionGroup,
   or,
-  and
+  and,
+  getDoc
 } from "firebase/firestore";
 
 // Firebase config loaded from environment variables (set in GitHub Secrets)
@@ -92,7 +93,8 @@ export {
   serverTimestamp,
   collectionGroup,
   or,
-  and
+  and,
+  getDoc
 };
 export type { User };
 

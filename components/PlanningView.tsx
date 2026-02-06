@@ -114,15 +114,27 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, updateItem, removeIte
 };
 
 
+import { StoreSelector } from './StoreSelector';
+
 interface PlanningViewProps {
   items: ShoppingItem[];
   addItem: (item: Omit<ShoppingItem, 'id' | 'createdAt' | 'sortOrder'>) => Promise<void>;
   updateItem: (id: string, updates: Partial<ShoppingItem>) => Promise<void>;
   removeItem: (id: string) => Promise<void>;
   reorderItems: (orderedIds: string[]) => Promise<void>;
+  activeStoreId?: string;
+  setActiveStore: (storeId: string) => void;
 }
 
-const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook, updateItem: updateItemHook, removeItem: removeItemHook, reorderItems }) => {
+const PlanningView: React.FC<PlanningViewProps> = ({
+  items,
+  addItem: addItemHook,
+  updateItem: updateItemHook,
+  removeItem: removeItemHook,
+  reorderItems,
+  activeStoreId,
+  setActiveStore
+}) => {
   const [newItemName, setNewItemName] = useState('');
 
   const capitalizeFirstLetter = useCallback((str: string) => {
@@ -340,6 +352,14 @@ const PlanningView: React.FC<PlanningViewProps> = ({ items, addItem: addItemHook
 
   return (
     <div className="flex flex-col gap-8 pb-32">
+      {/* Store Selector */}
+      <section className="w-full relative z-20">
+        <StoreSelector
+          activeStoreId={activeStoreId}
+          onSelect={(store) => setActiveStore(store.id)}
+        />
+      </section>
+
       {/* Search & Add Bar */}
       <section className="w-full relative z-10">
         <div className="flex gap-2">
