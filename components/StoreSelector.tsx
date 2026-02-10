@@ -9,16 +9,28 @@ interface StoreSelectorProps {
 }
 
 export const StoreSelector: React.FC<StoreSelectorProps> = ({ onSelect, activeStoreId, variant = 'default' }) => {
-    const { myStores, searchStores, createStore, loading } = useStores();
+    const { myStores, searchStores, createStore, loading, getStore } = useStores();
     const [isOpen, setIsOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'mine' | 'all'>('mine');
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<Store[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
+    const [fetchedActiveStore, setFetchedActiveStore] = useState<Store | null>(null);
 
-    // Active store details
-    const activeStore = myStores.find(s => s.id === activeStoreId);
+    // Active store details (check myStores first, then fetched)
+    const activeStore = myStores.find(s => s.id === activeStoreId) || fetchedActiveStore;
+
+    // Fetch active store if we don't have it (e.g. shared list context)
+    useEffect(() => {
+        if (activeStoreId && !myStores.find(s => s.id === activeStoreId)) {
+            const fetchIt = async () => {
+                const s = await getStore(activeStoreId);
+                if (s) setFetchedActiveStore(s);
+            };
+            fetchIt();
+        }
+    }, [activeStoreId, myStores, getStore]);
 
     // Sync search term with active store for completion variant
     useEffect(() => {
@@ -29,8 +41,9 @@ export const StoreSelector: React.FC<StoreSelectorProps> = ({ onSelect, activeSt
     }, [activeStoreId, myStores, variant]);
 
     // Debounced search active
+    // Debounced search active - NOW enabled for 'mine' tab too (as fallback)
     useEffect(() => {
-        if (activeTab === 'all' && searchTerm.length >= 2) {
+        if (searchTerm.length >= 2) {
             const timer = setTimeout(async () => {
                 setIsSearching(true);
                 const results = await searchStores(searchTerm);
