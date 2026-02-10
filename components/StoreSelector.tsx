@@ -23,9 +23,13 @@ export const StoreSelector: React.FC<StoreSelectorProps> = ({ onSelect, activeSt
 
     // Fetch active store if we don't have it (e.g. shared list context)
     useEffect(() => {
+        console.log("DEBUG: StoreSelector Effect. ActiveStoreId:", activeStoreId, "Found locally:", !!myStores.find(s => s.id === activeStoreId));
+
         if (activeStoreId && !myStores.find(s => s.id === activeStoreId)) {
+            console.log("DEBUG: StoreSelector fetching missing store:", activeStoreId);
             const fetchIt = async () => {
                 const s = await getStore(activeStoreId);
+                console.log("DEBUG: StoreSelector fetched:", s);
                 if (s) setFetchedActiveStore(s);
             };
             fetchIt();
