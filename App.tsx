@@ -47,7 +47,8 @@ const App: React.FC = () => {
     reorderItems,
     startStoreSession,
     completeShoppingTrip,
-    setActiveStore
+    setActiveStore,
+    unarchiveList
   } = useShoppingList(user);
 
   const { addSession, sessions, stats, loading: historyLoading, getFrequentItems, getRecurringPatterns } = useShoppingHistory(user, lists);
@@ -240,6 +241,7 @@ const App: React.FC = () => {
               setCurrentListId(id);
               setIsShareModalOpen(true);
             }}
+            onUnarchiveList={unarchiveList}
           />
         )}
 
@@ -281,6 +283,7 @@ const App: React.FC = () => {
               categoryOrder={currentList?.categoryOrder}
               lastShopperEmail={currentList?.lastShopperEmail}
               activeStoreId={currentList?.activeStoreId}
+              autoArchive={currentList?.autoArchive ?? true}
             />
           </div>
         )}

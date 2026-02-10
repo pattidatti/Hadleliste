@@ -15,6 +15,8 @@ interface ListCardProps {
     onShare: () => void;
     isEditMode?: boolean;
     isSelected?: boolean;
+    isHistorical?: boolean;
+    onUnarchive?: () => Promise<boolean>;
 }
 
 const ListCard: React.FC<ListCardProps> = ({
@@ -28,7 +30,9 @@ const ListCard: React.FC<ListCardProps> = ({
     onLeave,
     onShare,
     isEditMode = false,
-    isSelected = false
+    isSelected = false,
+    isHistorical = false,
+    onUnarchive
 }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isRenaming, setIsRenaming] = useState(false);
@@ -112,7 +116,9 @@ const ListCard: React.FC<ListCardProps> = ({
             <div
                 className={`relative p-4 rounded-3xl border transition-all duration-300 ${isActive
                     ? 'bg-accent-primary border-accent-primary shadow-xl shadow-accent-primary/20 text-white'
-                    : 'bg-surface border-primary hover:border-accent-primary/30 shadow-sm text-primary'
+                    : isHistorical
+                        ? 'bg-surface/50 border-primary opacity-60 hover:opacity-100 italic'
+                        : 'bg-surface border-primary hover:border-accent-primary/30 shadow-sm text-primary'
                     } ${isSelected ? 'ring-4 ring-red-500 border-red-500 bg-red-500/10' : ''}`}
                 style={{
                     transform: isOwner && !isRenaming && touchDelta > 0 ? `translateX(-${Math.min(touchDelta, 150)}px)` : 'translateX(0)',
@@ -164,21 +170,39 @@ const ListCard: React.FC<ListCardProps> = ({
                             </div>
                         )}
                         <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 opacity-60 ${isActive ? 'text-white' : 'text-secondary'}`}>
-                            {list.ownerEmail === list.ownerEmail && isOwner ? 'Eies av deg' : `Delt av ${list.ownerEmail}`}
+                            {isHistorical && list.completedAt ? (
+                                <span className="font-mono">Ferdig: {new Date(list.completedAt).toLocaleDateString('no-NO')}</span>
+                            ) : (
+                                list.ownerEmail === list.ownerEmail && isOwner ? 'Eies av deg' : `Delt av ${list.ownerEmail}`
+                            )}
                         </p>
                     </div>
 
                     <div className="relative">
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setIsMenuOpen(!isMenuOpen);
-                            }}
-                            className={`w-10 h-10 flex items-center justify-center rounded-2xl transition-colors ${isActive ? 'hover:bg-white/10 text-white' : 'hover:bg-primary text-secondary'
-                                }`}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
-                        </button>
+                        {isHistorical ? (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onUnarchive?.();
+                                    addToast('Listen er flyttet tilbake til aktive lister! ♻️', 'success');
+                                }}
+                                className="px-4 py-2 bg-primary text-secondary hover:bg-accent-primary hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+                                Gjenbruk
+                            </button>
+                        ) : (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsMenuOpen(!isMenuOpen);
+                                }}
+                                className={`w-10 h-10 flex items-center justify-center rounded-2xl transition-colors ${isActive ? 'hover:bg-white/10 text-white' : 'hover:bg-primary text-secondary'
+                                    }`}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
+                            </button>
+                        )}
 
                         {isMenuOpen && (
                             <>

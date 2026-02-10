@@ -42,10 +42,12 @@ export interface UseShoppingListReturn {
     updateItem: (id: string, updates: Partial<ShoppingItem>) => Promise<void>;
     reorderItems: (orderedIds: string[]) => Promise<void>;
     removeItem: (id: string) => Promise<void>;
-    resetBoughtItems: () => Promise<boolean>;
+    resetBoughtItems: (archive?: boolean) => Promise<boolean>;
     startStoreSession: () => void;
     completeShoppingTrip: (storeName?: string) => CompleteTripResult;
     setActiveStore: (storeId: string) => Promise<void>;
+    archiveList: (id: string) => Promise<boolean>;
+    unarchiveList: (id: string) => Promise<boolean>;
 }
 
 export interface CompleteTripResult {
@@ -108,14 +110,15 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
             setLists(fetchedLists);
 
             // Auto-select logic:
-            // 1. If we have a stored ID and it exists in fetched lists, keep it.
-            // 2. Otherwise, if lists exist, select the most recently updated one.
-            if (fetchedLists.length > 0) {
-                const stillExists = currentListId && fetchedLists.some(l => l.id === currentListId);
-                if (!stillExists) {
-                    setCurrentListId(fetchedLists[0].id);
+            // 1. Favor active lists. If the current list gets archived, jump to another active list.
+            const activeLists = fetchedLists.filter(l => !l.completedAt);
+            if (activeLists.length > 0) {
+                const currentIsStillActive = currentListId && activeLists.some(l => l.id === currentListId);
+                if (!currentIsStillActive) {
+                    setCurrentListId(activeLists[0].id);
                 }
             } else {
+                // No active lists left
                 setCurrentListId(null);
             }
         }, (error) => {
@@ -276,7 +279,7 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         });
     }, [currentListId]);
 
-    const resetBoughtItems = useCallback(async (): Promise<boolean> => {
+    const resetBoughtItems = useCallback(async (archive = false): Promise<boolean> => {
         if (!currentListId || !user?.email) return false;
 
         try {
@@ -314,6 +317,18 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
                 });
             } else {
                 batch.update(doc(db, "lists", currentListId), { updatedAt: now });
+            }
+
+            // Optional: Archive the list
+            if (archive) {
+                batch.update(doc(db, "lists", currentListId), {
+                    completedAt: Date.now(),
+                    updatedAt: now
+                });
+
+                // Auto-nav logic: If we archive the current list, the useEffect will stay on it
+                // unless we manually trigger a change or the snapshot filters it.
+                // We want to KEEP it in the lists array (for history), so we don't change snapshot filtering.
             }
 
             await batch.commit();
@@ -572,7 +587,31 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
         removeCollaborator,
         leaveList,
         isOwner,
-        setActiveStore
+        setActiveStore,
+        archiveList: useCallback(async (id: string) => {
+            try {
+                await updateDoc(doc(db, "lists", id), {
+                    completedAt: Date.now(),
+                    updatedAt: serverTimestamp()
+                });
+                return true;
+            } catch (e) {
+                console.error("Failed to archive list:", e);
+                return false;
+            }
+        }, []),
+        unarchiveList: useCallback(async (id: string) => {
+            try {
+                await updateDoc(doc(db, "lists", id), {
+                    completedAt: null,
+                    updatedAt: serverTimestamp()
+                });
+                return true;
+            } catch (e) {
+                console.error("Failed to unarchive list:", e);
+                return false;
+            }
+        }, [])
     };
 };
 

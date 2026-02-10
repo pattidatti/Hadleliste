@@ -108,6 +108,8 @@ export interface SharedList {
   categoryOrder?: string[];
   itemPathWeights?: Record<string, number>;
   lastShopperEmail?: string;
+  completedAt?: number;
+  autoArchive?: boolean;
 }
 
 export interface UserSettings {

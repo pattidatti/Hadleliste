@@ -13,12 +13,13 @@ interface StoreViewProps {
   items: ShoppingItem[];
   updateItem: (id: string, updates: Partial<ShoppingItem>) => Promise<void>;
   removeItem: (id: string) => Promise<void>;
-  onReset: () => Promise<boolean>;
+  onReset: (archive?: boolean) => Promise<boolean>;
   onComplete: (storeName?: string) => CompleteTripResult;
   onSaveSession: (listId: string, session: Omit<ShoppingSession, 'id'>) => Promise<void>;
-  categoryOrder?: string[]; // Learned category order from store-pathing
+  categoryOrder?: string[];
   lastShopperEmail?: string;
   activeStoreId?: string;
+  autoArchive?: boolean;
 }
 
 const SwipeableItem = ({ item, onToggle, onDelete }: { item: ShoppingItem, onToggle: (id: string) => void, onDelete: (id: string) => void }) => {
@@ -78,7 +79,8 @@ const StoreView: React.FC<StoreViewProps> = ({
   onSaveSession,
   categoryOrder,
   lastShopperEmail,
-  activeStoreId
+  activeStoreId,
+  autoArchive = true
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isResetting, setIsResetting] = useState(false);
@@ -89,7 +91,7 @@ const StoreView: React.FC<StoreViewProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const { addOrUpdateProduct } = useCatalog();
   const { addToast } = useToast();
-  const { myStores, updateMyLayout } = useStores();
+  const { myStores, updateMyLayout, myLayouts } = useStores();
 
   // Pre-select store if activeStoreId is set
   React.useEffect(() => {
@@ -117,7 +119,7 @@ const StoreView: React.FC<StoreViewProps> = ({
 
     if (window.confirm('Vil du nullstille hele listen? Alle lister blir markert som "ukjøpt".')) {
       setIsResetting(true);
-      const success = await onReset();
+      const success = await onReset(false); // Manual reset should NOT archive
       setIsResetting(false);
 
       if (success) {
@@ -189,11 +191,16 @@ const StoreView: React.FC<StoreViewProps> = ({
         }
       }
 
-      await onReset();
+      await onReset(autoArchive);
       setShowCompletionModal(false);
       setCompletionResult(null);
       setSelectedStore(null);
-      addToast('Handelen er lagret! 🎉', 'success');
+
+      if (autoArchive) {
+        addToast('Handelen er lagret og flyttet til historikk! 📦', 'success');
+      } else {
+        addToast('Handelen er lagret! 🎉', 'success');
+      }
       haptics.success();
     } catch (error) {
       console.error('Failed to save session:', error);
@@ -214,9 +221,9 @@ const StoreView: React.FC<StoreViewProps> = ({
   const activeItems = filteredItems.filter(i => !i.isBought);
   const completedItems = filteredItems.filter(i => i.isBought);
 
-  // Smart Sort: Prioritize Active Store Layout -> List Category Order -> Default
   const activeStore = myStores.find(s => s.id === (selectedStore?.id || activeStoreId));
-  const storeLayout = activeStore?.layout;
+  // Smart Sort: Prioritize Active Store Layout -> List Category Order -> Default
+  const storeLayout = myLayouts.find(l => l.storeId === (selectedStore?.id || activeStoreId))?.categoryOrder;
 
   const effectiveCategoryOrder = storeLayout && storeLayout.length > 0
     ? [...storeLayout, ...CATEGORIES.filter(c => !storeLayout.includes(c))]

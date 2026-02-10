@@ -16,6 +16,7 @@ interface ListsViewProps {
     userEmail: string;
     onShareList: (id: string) => void;
     onGenerateSmartList: () => Promise<void>;
+    onUnarchiveList: (id: string) => Promise<boolean>;
     isGenerating: boolean;
 }
 
@@ -33,6 +34,7 @@ const ListsView: React.FC<ListsViewProps> = ({
     onShareList,
     onDeleteLists,
     onGenerateSmartList,
+    onUnarchiveList,
     isGenerating
 }) => {
     const [newListName, setNewListName] = useState('');
@@ -40,6 +42,11 @@ const ListsView: React.FC<ListsViewProps> = ({
     const [isEditMode, setIsEditMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+    const activeLists = lists.filter(l => !l.completedAt);
+    const historyLists = lists.filter(l => !!l.completedAt);
+
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -83,9 +90,9 @@ const ListsView: React.FC<ListsViewProps> = ({
     };
 
     return (
-        <div className="flex flex-col h-full bg-primary">
+        <div className="flex flex-col h-full bg-primary" >
             {/* Header */}
-            <header className="bg-surface px-6 py-6 border-b border-primary flex justify-between items-center sticky top-0 z-10 transition-colors">
+            < header className="bg-surface px-6 py-6 border-b border-primary flex justify-between items-center sticky top-0 z-10 transition-colors" >
                 <div>
                     <h2 className="text-2xl font-black text-primary">Mine Lister</h2>
                     <p className="text-[10px] font-black text-accent-primary uppercase tracking-widest mt-1">
@@ -102,13 +109,13 @@ const ListsView: React.FC<ListsViewProps> = ({
                 >
                     {isEditMode ? 'Ferdig' : 'Rediger'}
                 </button>
-            </header>
+            </header >
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto px-4 py-8 space-y-8 pb-32">
+            < div className="flex-1 overflow-y-auto px-4 py-8 space-y-8 pb-32" >
 
                 {/* Create New */}
-                <section className="space-y-4">
+                < section className="space-y-4" >
                     <form onSubmit={handleCreate} className="relative group/create">
                         <div className="absolute inset-0 bg-accent-primary/10 blur-xl rounded-2xl opacity-0 group-focus-within/create:opacity-100 transition-opacity"></div>
                         <div className="relative flex gap-2">
@@ -150,62 +157,120 @@ const ListsView: React.FC<ListsViewProps> = ({
                             </>
                         )}
                     </button>
-                </section>
+                </section >
 
-                {/* List Entries */}
-                <section className="space-y-4">
-                    {lists.length === 0 ? (
-                        <div className="py-20 text-center opacity-30">
-                            <span className="text-6xl mb-4 block">📋</span>
-                            <p className="font-black text-secondary">Ingen lister ennå</p>
+                {/* Active Lists */}
+                < section className="space-y-4" >
+                    {
+                        activeLists.length === 0 ? (
+                            <div className="py-12 text-center opacity-30 border-2 border-dashed border-primary rounded-3xl">
+                                <span className="text-4xl mb-4 block">📝</span>
+                                <p className="font-black text-secondary text-sm">Ingen aktive lister akkurat nå</p>
+                            </div>
+                        ) : (
+                            <div className="grid gap-4">
+                                {[...activeLists].sort((a, b) => {
+                                    const timeA = (a.updatedAt as any)?.toMillis?.() || a.updatedAt || 0;
+                                    const timeB = (b.updatedAt as any)?.toMillis?.() || b.updatedAt || 0;
+                                    return timeB - timeA;
+                                }).map(list => (
+                                    <ListCard
+                                        key={list.id}
+                                        list={list}
+                                        isActive={list.id === currentListId}
+                                        isOwner={isOwner(list.id)}
+                                        onSelect={() => isEditMode ? toggleSelection(list.id) : onSelectList(list.id)}
+                                        onRename={(name) => onRenameList(list.id, name)}
+                                        onDelete={() => onDeleteList(list.id)}
+                                        onToggleVisibility={() => onToggleVisibility(list.id)}
+                                        onLeave={() => onLeaveList(list.id)}
+                                        onShare={() => onShareList(list.id)}
+                                        isEditMode={isEditMode}
+                                        isSelected={selectedIds.has(list.id)}
+                                    />
+                                ))}
+                            </div>
+                        )
+                    }
+                </section >
+
+                {/* The "Skuff" (History Drawer) */}
+                {historyLists.length > 0 && (
+                    <section className="pt-8 border-t border-primary border-dashed relative">
+                        <div className="absolute top-[-1px] left-1/2 -translate-x-1/2 bg-primary px-3 py-1 flex items-center gap-1.5 rounded-full border border-primary shadow-sm z-10">
+                            <span className="w-1.5 h-1.5 rounded-full bg-secondary/30 animate-pulse"></span>
+                            <span className="text-[8px] font-black text-secondary/60 uppercase tracking-[0.2em]">Arkiv</span>
                         </div>
-                    ) : (
-                        <div className="grid gap-4">
-                            {[...lists].sort((a, b) => {
-                                const timeA = (a.updatedAt as any)?.toMillis?.() || a.updatedAt || 0;
-                                const timeB = (b.updatedAt as any)?.toMillis?.() || b.updatedAt || 0;
-                                return timeB - timeA;
-                            }).map(list => (
-                                <ListCard
-                                    key={list.id}
-                                    list={list}
-                                    isActive={list.id === currentListId}
-                                    isOwner={isOwner(list.id)}
-                                    // In edit mode, click card to toggle selection
-                                    onSelect={() => isEditMode ? toggleSelection(list.id) : onSelectList(list.id)}
-                                    onRename={(name) => onRenameList(list.id, name)}
-                                    onDelete={() => onDeleteList(list.id)}
-                                    onToggleVisibility={() => onToggleVisibility(list.id)}
-                                    onLeave={() => onLeaveList(list.id)}
-                                    onShare={() => onShareList(list.id)}
-                                    isEditMode={isEditMode}
-                                    isSelected={selectedIds.has(list.id)}
-                                />
-                            ))}
-                        </div>
-                    )}
-                </section>
+
+                        <button
+                            onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                            className="w-full flex items-center justify-between px-2 py-6 group bg-primary/20 hover:bg-primary/40 rounded-3xl transition-all duration-300 mt-2"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-xl transition-all duration-300 ${isHistoryOpen ? 'bg-accent-primary text-white' : 'bg-surface border border-primary text-secondary'}`}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={`transition-transform duration-500 ${isHistoryOpen ? 'rotate-180' : ''}`}>
+                                        <path d="M6 9l6 6 6-6" />
+                                    </svg>
+                                </div>
+                                <div className="text-left">
+                                    <span className="text-xs font-black text-primary uppercase tracking-widest block">Tidligere lister</span>
+                                    <span className="text-[10px] font-bold text-secondary opacity-50 uppercase tracking-tighter">{historyLists.length} arkiverte objekter</span>
+                                </div>
+                            </div>
+                            <span className="text-[10px] font-black text-accent-primary/60 uppercase tracking-widest group-hover:tracking-[0.2em] transition-all px-4 py-2 bg-surface/50 rounded-full border border-primary/50 backdrop-blur-sm">
+                                {isHistoryOpen ? 'Lukk' : 'Åpne'}
+                            </span>
+                        </button>
+
+                        {isHistoryOpen && (
+                            <div className="grid gap-3 mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                {[...historyLists].sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0)).map(list => (
+                                    <ListCard
+                                        key={list.id}
+                                        list={list}
+                                        isActive={list.id === currentListId}
+                                        isOwner={isOwner(list.id)}
+                                        onSelect={() => isEditMode ? toggleSelection(list.id) : onSelectList(list.id)}
+                                        onRename={(name) => onRenameList(list.id, name)}
+                                        onDelete={() => onDeleteList(list.id)}
+                                        onToggleVisibility={() => onToggleVisibility(list.id)}
+                                        onLeave={() => onLeaveList(list.id)}
+                                        onShare={() => onShareList(list.id)}
+                                        isEditMode={isEditMode}
+                                        isSelected={selectedIds.has(list.id)}
+                                        isHistorical={true}
+                                        onUnarchive={() => onUnarchiveList(list.id)}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </section>
+                )
+                }
+
 
                 {/* Bulk Actions Bar */}
-                {isEditMode && lists.length > 0 && (
-                    <div className="fixed bottom-24 left-4 right-4 animate-in slide-in-from-bottom-8 duration-300">
-                        <div className="bg-surface/80 backdrop-blur-xl border border-primary p-2 rounded-[2rem] shadow-2xl flex gap-2">
-                            <button
-                                onClick={handleSelectAll}
-                                className="flex-1 bg-primary text-secondary py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-primary/80 transition-all"
-                            >
-                                {selectedIds.size === lists.length ? 'Velg ingen' : 'Velg alle'}
-                            </button>
-                            <button
-                                onClick={handleBulkDelete}
-                                disabled={selectedIds.size === 0 || isDeletingBulk}
-                                className="flex-1 bg-red-600 text-white py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-red-200 active:scale-95 transition-all disabled:opacity-50"
-                            >
-                                {isDeletingBulk ? 'Sletter...' : `Slett ${selectedIds.size || ''}`}
-                            </button>
+                {
+                    isEditMode && lists.length > 0 && (
+                        <div className="fixed bottom-24 left-4 right-4 animate-in slide-in-from-bottom-8 duration-300">
+                            <div className="bg-surface/80 backdrop-blur-xl border border-primary p-2 rounded-[2rem] shadow-2xl flex gap-2">
+                                <button
+                                    onClick={handleSelectAll}
+                                    className="flex-1 bg-primary text-secondary py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-primary/80 transition-all"
+                                >
+                                    {selectedIds.size === lists.length ? 'Velg ingen' : 'Velg alle'}
+                                </button>
+                                <button
+                                    onClick={handleBulkDelete}
+                                    disabled={selectedIds.size === 0 || isDeletingBulk}
+                                    className="flex-1 bg-red-600 text-white py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-red-200 active:scale-95 transition-all disabled:opacity-50"
+                                >
+                                    {isDeletingBulk ? 'Sletter...' : `Slett ${selectedIds.size || ''}`}
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )
+                }
 
                 {/* User Info Footer */}
                 <div className="text-center pt-8 border-t border-primary">
@@ -214,7 +279,7 @@ const ListsView: React.FC<ListsViewProps> = ({
                     </p>
                 </div>
 
-            </div>
+            </div >
         </div >
     );
 };
