@@ -20,14 +20,13 @@ import { CATEGORIES } from '../constants/commonItems';
 export const useStores = () => {
     const { user } = useAuth();
     const [myLayouts, setMyLayouts] = useState<UserStoreLayout[]>([]);
-    const [myStores, setMyStores] = useState<Store[]>([]);
+    const [allStores, setAllStores] = useState<Store[]>([]);
     const [loading, setLoading] = useState(true);
 
     // 1. Subscribe to My Personal Layouts
     useEffect(() => {
         if (!user) {
             setMyLayouts([]);
-            setMyStores([]);
             setLoading(false);
             return;
         }
@@ -36,86 +35,43 @@ export const useStores = () => {
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const layouts = snapshot.docs.map(d => d.data() as UserStoreLayout);
             setMyLayouts(layouts);
-
-            // Trigger fetch of store details for these layouts
-            fetchStoreDetails(layouts.map(l => l.storeId));
         });
 
         return unsubscribe;
     }, [user]);
 
-    // 2. Fetch details for stores I use
-    const fetchStoreDetails = async (storeIds: string[]) => {
-        if (storeIds.length === 0) {
-            setMyStores([]);
+    // 2. Fetch ALL non-deleted stores (Unified Fetching)
+    useEffect(() => {
+        const q = query(collection(db, "stores"));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const stores = snapshot.docs
+                .map(d => ({ id: d.id, ...d.data() } as Store))
+                .filter(s => !s.deletedAt);
+            setAllStores(stores);
             setLoading(false);
-            return;
-        }
-
-        try {
-            // Firestore 'in' query supports max 10/30 items. 
-            // For robustness, we'll just fetch unique IDs that we don't have yet or refresh all.
-            // Since this is "My Stores", the list is usually small (<20).
-            const uniqueIds = [...new Set(storeIds)];
-            const storesData: Store[] = [];
-
-            // We could optimize this with 'in' query if needed, but parallel gets are fine for now
-            // or we could subscribe to them if we want real-time updates on names.
-            // For now, let's fetch once.
-            for (const id of uniqueIds) {
-                const docRef = doc(db, "stores", id);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    const store = { id: docSnap.id, ...docSnap.data() } as Store;
-                    if (!store.deletedAt) {
-                        storesData.push(store);
-                    }
-                }
-            }
-
-            // Sort by lastUsed from layout
-            const sortedStores = storesData.sort((a, b) => {
-                const layoutA = myLayouts.find(l => l.storeId === a.id);
-                const layoutB = myLayouts.find(l => l.storeId === b.id);
-                return (layoutB?.lastUsed || 0) - (layoutA?.lastUsed || 0);
-            });
-
-            setMyStores(sortedStores);
-        } catch (error) {
-            console.error("Error fetching store details:", error);
-        } finally {
+        }, (error) => {
+            console.error("Error fetching all stores:", error);
             setLoading(false);
-        }
-    };
+        });
 
-    // SEARCH: Find global stores
+        return unsubscribe;
+    }, []);
+
+    // 3. Derived: myStores (Recent/Used stores)
+    // Memoized subset of allStores that have a layout, sorted by lastUsed
+    const myStores = allStores
+        .filter(s => myLayouts.some(l => l.storeId === s.id))
+        .sort((a, b) => {
+            const layoutA = myLayouts.find(l => l.storeId === a.id);
+            const layoutB = myLayouts.find(l => l.storeId === b.id);
+            return (layoutB?.lastUsed || 0) - (layoutA?.lastUsed || 0);
+        });
+
+    // SEARCH: Filter allStores locally for speed
     const searchStores = async (searchTerm: string): Promise<Store[]> => {
         if (!searchTerm || searchTerm.length < 2) return [];
-
-        // Simple client-side filtering isn't efficient for Global, but Firestore text search is limited.
-        // We'll fetch a reasonable batch or use an index. 
-        // For MVP: Fetch all valid stores (if small) or use a "name" where query.
-        // Firestore doesn't do "contains". We can rely on exact match or prefix if we had `keywords`.
-        // Let's assume we pull a subset or have a separate search index later.
-        // FALLBACK FOR MVP: Query all stores that are NOT deleted.
-        // NOTE: In production with thousands of stores, we'd need Meilisearch/Algolia.
-        // Here we'll query collection "stores" and filter client side for the prototype (assuming <100 stores).
-
-        try {
-            // FIX: Don't use where("deletedAt", "==", null) because it excludes undefined fields.
-            const q = query(collection(db, "stores"));
-            const snapshot = await getDocs(q);
-
-            const allStores = snapshot.docs
-                .map(d => ({ id: d.id, ...d.data() } as Store))
-                .filter(s => !s.deletedAt); // Filter out deleted ones (checks for truthy value)
-
-            const lowerTerm = searchTerm.toLowerCase();
-            return allStores.filter(s => s.name?.toLowerCase().includes(lowerTerm));
-        } catch (e) {
-            console.error("Search failed:", e);
-            return [];
-        }
+        const lowerTerm = searchTerm.toLowerCase();
+        return allStores.filter(s => s.name?.toLowerCase().includes(lowerTerm));
     };
 
     // CREATE: New Global Store
@@ -210,6 +166,8 @@ export const useStores = () => {
 
     return {
         myStores,
+        allStores,
+        myLayouts,
         loading,
         searchStores,
         createStore,
