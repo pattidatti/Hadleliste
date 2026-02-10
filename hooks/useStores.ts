@@ -102,29 +102,18 @@ export const useStores = () => {
         // Here we'll query collection "stores" and filter client side for the prototype (assuming <100 stores).
 
         try {
-            console.log("DEBUG: searchStores called with:", searchTerm);
             // FIX: Don't use where("deletedAt", "==", null) because it excludes undefined fields.
-            // Fetch everything and filter in JS.
             const q = query(collection(db, "stores"));
             const snapshot = await getDocs(q);
-            console.log("DEBUG: Snapshot size:", snapshot.size);
 
             const allStores = snapshot.docs
                 .map(d => ({ id: d.id, ...d.data() } as Store))
-                .filter(s => {
-                    const keep = !s.deletedAt;
-                    if (!keep) console.log("DEBUG: Filtered out deleted store:", s.name, s.deletedAt);
-                    return keep;
-                });
-
-            console.log("DEBUG: All active stores count:", allStores.length);
+                .filter(s => !s.deletedAt); // Filter out deleted ones (checks for truthy value)
 
             const lowerTerm = searchTerm.toLowerCase();
-            const results = allStores.filter(s => s.name?.toLowerCase().includes(lowerTerm));
-            console.log("DEBUG: Filtered results count:", results.length);
-            return results;
+            return allStores.filter(s => s.name?.toLowerCase().includes(lowerTerm));
         } catch (e) {
-            console.error("DEBUG: Search failed error:", e);
+            console.error("Search failed:", e);
             return [];
         }
     };

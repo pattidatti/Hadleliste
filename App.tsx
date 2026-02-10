@@ -16,7 +16,6 @@ import { useCatalog } from './hooks/useCatalog';
 import { useTheme } from './hooks/useTheme';
 import { generateSmartShoppingList, logAvailableModels } from './services/geminiService';
 import { useToast } from './components/Toast';
-import { DebugStore } from './components/DebugStore';
 
 const App: React.FC = () => {
   // Debug models on mount
@@ -325,7 +324,6 @@ const App: React.FC = () => {
           <span>EMAIL: {user?.email}</span>
         </div>
       </footer>
-      <DebugStore activeStoreId={lists.find(l => l.id === currentListId)?.activeStoreId} />
     </div>
   );
 };
