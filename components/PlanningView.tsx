@@ -2,9 +2,9 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { ShoppingItem } from '../types';
 import { getSmartCategorization, parseReceiptPrices } from '../services/geminiService';
 import { haptics } from '../services/haptics';
-import { CATEGORIES } from '../constants/commonItems';
-import { useToast } from './Toast';
 import { useCatalog } from '../hooks/useCatalog';
+import { useCategories } from '../hooks/useCategories';
+import { useToast } from './Toast';
 import {
   DndContext,
   closestCenter,
@@ -152,6 +152,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({
 
   // Hook for Global Catalog
   const { products, getProduct, addOrUpdateProduct, loading: catalogLoading } = useCatalog();
+  const { categories: dynamicCategories, loading: categoriesLoading } = useCategories();
 
   // Auto-sync items with catalog when items or products change
   useEffect(() => {
@@ -329,7 +330,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({
   // Robust grouping handling uncategorized items
   const groupedItems = new Set<string>();
 
-  const activeGrouped = CATEGORIES.map(cat => {
+  const activeGrouped = dynamicCategories.map(cat => {
     const catItems = items.filter(i => i.category === cat);
     catItems.forEach(i => groupedItems.add(i.id));
     return {
@@ -345,12 +346,12 @@ const PlanningView: React.FC<PlanningViewProps> = ({
   }
 
   // Group GLOBAL products for the catalog view
-  const catalogGrouped = CATEGORIES.map(cat => ({
+  const catalogGrouped = dynamicCategories.map(cat => ({
     name: cat,
     items: products.filter(p => p.category === cat)
   }));
   // Add "Annet" for anything else
-  const otherItems = products.filter(p => !CATEGORIES.includes(p.category));
+  const otherItems = products.filter(p => !dynamicCategories.includes(p.category));
   if (otherItems.length > 0) {
     catalogGrouped.push({ name: 'Annet', items: otherItems });
   }

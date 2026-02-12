@@ -4,6 +4,7 @@ import { CATEGORIES } from '../constants/commonItems';
 import { useSwipe } from '../hooks/useSwipe';
 import { haptics } from '../services/haptics';
 import { useCatalog } from '../hooks/useCatalog';
+import { useCategories } from '../hooks/useCategories';
 import { useToast } from './Toast';
 import { CompleteTripResult } from '../hooks/useShoppingList';
 import { StoreSelector } from './StoreSelector';
@@ -92,6 +93,7 @@ const StoreView: React.FC<StoreViewProps> = ({
   const { addOrUpdateProduct } = useCatalog();
   const { addToast } = useToast();
   const { myStores, updateMyLayout, myLayouts } = useStores();
+  const { categories: dynamicCategories } = useCategories();
 
   // Pre-select store if activeStoreId is set
   React.useEffect(() => {
@@ -226,10 +228,10 @@ const StoreView: React.FC<StoreViewProps> = ({
   const storeLayout = myLayouts.find(l => l.storeId === (selectedStore?.id || activeStoreId))?.categoryOrder;
 
   const effectiveCategoryOrder = storeLayout && storeLayout.length > 0
-    ? [...storeLayout, ...CATEGORIES.filter(c => !storeLayout.includes(c))]
+    ? [...storeLayout, ...dynamicCategories.filter(c => !storeLayout.includes(c))]
     : categoryOrder && categoryOrder.length > 0
-      ? [...categoryOrder, ...CATEGORIES.filter(c => !categoryOrder.includes(c))]
-      : CATEGORIES;
+      ? [...categoryOrder, ...dynamicCategories.filter(c => !categoryOrder.includes(c))]
+      : dynamicCategories;
 
   // Group active items by category using learned order
   const groupedActive = effectiveCategoryOrder.map(cat => ({
