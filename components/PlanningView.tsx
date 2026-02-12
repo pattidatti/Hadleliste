@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { ShoppingItem } from '../types';
 import { getSmartCategorization, parseReceiptPrices } from '../services/geminiService';
 import { haptics } from '../services/haptics';
@@ -124,6 +124,7 @@ interface PlanningViewProps {
   reorderItems: (orderedIds: string[]) => Promise<void>;
   activeStoreId?: string;
   setActiveStore: (storeId: string) => void;
+  syncItemsWithCatalog: (catalog: any[]) => Promise<void>;
 }
 
 const PlanningView: React.FC<PlanningViewProps> = ({
@@ -133,7 +134,8 @@ const PlanningView: React.FC<PlanningViewProps> = ({
   removeItem: removeItemHook,
   reorderItems,
   activeStoreId,
-  setActiveStore
+  setActiveStore,
+  syncItemsWithCatalog
 }) => {
   const [newItemName, setNewItemName] = useState('');
 
@@ -149,7 +151,14 @@ const PlanningView: React.FC<PlanningViewProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Hook for Global Catalog
-  const { products, getProduct, addOrUpdateProduct } = useCatalog();
+  const { products, getProduct, addOrUpdateProduct, loading: catalogLoading } = useCatalog();
+
+  // Auto-sync items with catalog when items or products change
+  useEffect(() => {
+    if (!catalogLoading && products.length > 0 && items.length > 0) {
+      syncItemsWithCatalog(products);
+    }
+  }, [items.length, products, catalogLoading, syncItemsWithCatalog]);
 
   // Drag and Drop Sensors
   const sensors = useSensors(

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { db, doc, onSnapshot, setDoc, updateDoc, collection, query, writeBatch } from '../services/firebase';
+import { db, doc, onSnapshot, setDoc, updateDoc, collection, query, writeBatch, collectionGroup, where, getDocs } from '../services/firebase';
 import { Product, PriceHistoryRecord } from '../types';
 import { useAuth } from './useAuth';
 
@@ -12,6 +12,34 @@ export const useCatalog = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const { user } = useAuth();
+
+    const syncProductToAllLists = useCallback(async (productName: string, updates: { category?: string, price?: number }) => {
+        if (!updates.category && updates.price === undefined) return;
+
+        try {
+            // Find all items in any list matching the name (case-insensitive search would be better, but we use normalized name)
+            const q = query(collectionGroup(db, "items"), where("name", "==", productName));
+            const snapshot = await getDocs(q);
+
+            if (snapshot.empty) return;
+
+            // Update in chunks to avoid batch limit (500)
+            const docs = snapshot.docs;
+            for (let i = 0; i < docs.length; i += 500) {
+                const batch = writeBatch(db);
+                const chunk = docs.slice(i, i + 500);
+
+                chunk.forEach(itemDoc => {
+                    batch.update(itemDoc.ref, updates);
+                });
+
+                await batch.commit();
+            }
+            console.log(`Synced ${docs.length} instances of ${productName}`);
+        } catch (error) {
+            console.error("Failed to sync product to lists:", error);
+        }
+    }, []);
 
     useEffect(() => {
         const q = query(collection(db, "products"));
@@ -91,7 +119,18 @@ export const useCatalog = () => {
             }
         }
         await batch.commit();
-    }, [products, user]);
+
+        // Sync updates to all active lists if category or price changed
+        if (existingProduct) {
+            const syncUpdates: any = {};
+            if (category !== undefined && category !== existingProduct.category) syncUpdates.category = category;
+            if (price !== undefined && price !== existingProduct.price) syncUpdates.price = price;
+
+            if (Object.keys(syncUpdates).length > 0) {
+                await syncProductToAllLists(existingProduct.name, syncUpdates);
+            }
+        }
+    }, [products, user, syncProductToAllLists]);
 
     const updateProduct = useCallback(async (productId: string, updates: Partial<Product>) => {
         const existing = products.find(p => p.id === productId);
@@ -114,7 +153,18 @@ export const useCatalog = () => {
         }
 
         await batch.commit();
-    }, [products, user]);
+
+        // Sync updates to all active lists
+        if (existing && (updates.category !== undefined || updates.price !== undefined)) {
+            const syncUpdates: any = {};
+            if (updates.category !== undefined && updates.category !== existing.category) syncUpdates.category = updates.category;
+            if (updates.price !== undefined && updates.price !== existing.price) syncUpdates.price = updates.price;
+
+            if (Object.keys(syncUpdates).length > 0) {
+                await syncProductToAllLists(existing.name, syncUpdates);
+            }
+        }
+    }, [products, user, syncProductToAllLists]);
 
     const deleteProduct = useCallback(async (productId: string) => {
         if (!window.confirm("Vil du arkivere denne varen? Den kan gjenopprettes senere.")) return;

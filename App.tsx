@@ -48,7 +48,8 @@ const App: React.FC = () => {
     startStoreSession,
     completeShoppingTrip,
     setActiveStore,
-    unarchiveList
+    unarchiveList,
+    syncItemsWithCatalog
   } = useShoppingList(user);
 
   const { addSession, sessions, stats, loading: historyLoading, getFrequentItems, getRecurringPatterns } = useShoppingHistory(user, lists);
@@ -267,6 +268,7 @@ const App: React.FC = () => {
               reorderItems={reorderItems}
               activeStoreId={currentList?.activeStoreId}
               setActiveStore={setActiveStore}
+              syncItemsWithCatalog={syncItemsWithCatalog}
             />
           </div>
         )}

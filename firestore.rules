@@ -34,6 +34,15 @@ service cloud.firestore {
         );
       }
     }
+    
+    // Support for collectionGroup queries (used by catalog sync)
+    match /{path=**}/items/{itemId} {
+      allow read, write: if request.auth != null && (
+        // path[1] is the listId in the path /lists/{listId}/items/{itemId}
+        get(/databases/$(database)/documents/lists/$(path[1])).data.ownerId == request.auth.uid ||
+        request.auth.token.email in get(/databases/$(database)/documents/lists/$(path[1])).data.collaborators
+      );
+    }
 
     match /products/{productId} {
       // Global varekatalog - alle innloggede brukere kan lese og oppdatere

@@ -48,6 +48,7 @@ export interface UseShoppingListReturn {
     setActiveStore: (storeId: string) => Promise<void>;
     archiveList: (id: string) => Promise<boolean>;
     unarchiveList: (id: string) => Promise<boolean>;
+    syncItemsWithCatalog: (catalog: any[]) => Promise<void>;
 }
 
 export interface CompleteTripResult {
@@ -611,7 +612,51 @@ export const useShoppingList = (user: User | null): UseShoppingListReturn => {
                 console.error("Failed to unarchive list:", e);
                 return false;
             }
-        }, [])
+        }, []),
+        syncItemsWithCatalog: useCallback(async (catalog: any[]) => {
+            if (!currentListId || items.length === 0 || catalog.length === 0) return;
+
+            // Create a Map for O(1) lookups
+            const catalogMap = new Map(catalog.map(p => [p.id, p]));
+            const updates: { id: string, data: any }[] = [];
+
+            items.forEach(item => {
+                const product = catalogMap.get(item.name.toLowerCase());
+                if (product) {
+                    const needsUpdate = (product.category && item.category !== product.category) ||
+                        (product.price !== undefined && item.price !== product.price);
+
+                    if (needsUpdate) {
+                        updates.push({
+                            id: item.id,
+                            data: {
+                                category: product.category,
+                                price: product.price
+                            }
+                        });
+                    }
+                }
+            });
+
+            if (updates.length === 0) return;
+
+            console.log(`Auto-syncing ${updates.length} items with catalog for list ${currentListId}`);
+
+            try {
+                // Batch update in chunks of 500
+                for (let i = 0; i < updates.length; i += 500) {
+                    const batch = writeBatch(db);
+                    const chunk = updates.slice(i, i + 500);
+                    chunk.forEach(u => {
+                        const itemRef = doc(db, "lists", currentListId, "items", u.id);
+                        batch.update(itemRef, u.data);
+                    });
+                    await batch.commit();
+                }
+            } catch (e) {
+                console.error("Failed to sync items with catalog:", e);
+            }
+        }, [currentListId, items])
     };
 };
 
