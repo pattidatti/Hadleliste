@@ -380,7 +380,14 @@ const PlanningView: React.FC<PlanningViewProps> = ({
       {/* Search & Add Bar */}
       <section className="w-full relative z-10">
         <div className="flex gap-2">
-          <form onSubmit={(e) => { e.preventDefault(); addItem(newItemName); setShowSuggestions(false); }} className="relative flex-1">
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const trimmed = newItemName.trim().toLowerCase();
+            const match = products.find(p => !p.deleted && p.name.toLowerCase() === trimmed);
+            const qty = match ? (suggestionQuantities[match.id] ?? 1) : 1;
+            addItem(newItemName, qty);
+            setShowSuggestions(false);
+          }} className="relative flex-1">
             <input
               type="text"
               value={newItemName}
