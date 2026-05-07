@@ -138,6 +138,10 @@ const PlanningView: React.FC<PlanningViewProps> = ({
   syncItemsWithCatalog
 }) => {
   const [newItemName, setNewItemName] = useState('');
+  const [suggestionQuantities, setSuggestionQuantities] = useState<Record<string, number>>({});
+
+  const setSuggestionQty = (id: string, qty: number) =>
+    setSuggestionQuantities(prev => ({ ...prev, [id]: Math.max(1, qty) }));
 
   const capitalizeFirstLetter = useCallback((str: string) => {
     if (!str) return '';
@@ -190,11 +194,12 @@ const PlanningView: React.FC<PlanningViewProps> = ({
     }
   };
 
-  const addItem = async (name: string) => {
+  const addItem = async (name: string, quantity: number = 1) => {
     const trimmedName = name.trim();
     if (!trimmedName || isLoading) return;
 
     const capitalizedName = capitalizeFirstLetter(trimmedName);
+    const qty = Math.max(1, Math.floor(quantity) || 1);
 
     if (items.some(i => i.name.toLowerCase() === capitalizedName.toLowerCase())) {
       addToast(`${capitalizedName} er allerede i listen`, 'info');
@@ -207,7 +212,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({
     if (existingProduct) {
       const newItem = {
         name: existingProduct.name, // Use canonical name
-        quantity: 1,
+        quantity: qty,
         unit: existingProduct.unit || 'stk',
         price: existingProduct.price || 0,
         category: existingProduct.category,
@@ -216,6 +221,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({
 
       await addItemHook(newItem);
       setNewItemName('');
+      setSuggestionQuantities({});
       addToast(`La til ${existingProduct.name}`, 'success');
       haptics.success();
 
@@ -232,7 +238,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({
 
         const newItem = {
           name: capitalizedName,
-          quantity: 1,
+          quantity: qty,
           unit: 'stk',
           price: 0,
           category,
@@ -241,6 +247,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({
 
         await addItemHook(newItem);
         setNewItemName('');
+        setSuggestionQuantities({});
         addToast(`La til ${capitalizedName}`, 'success');
         haptics.success();
       } catch (error) {
@@ -405,30 +412,54 @@ const PlanningView: React.FC<PlanningViewProps> = ({
             {showSuggestions && suggestions.length > 0 && (
               <div className="absolute left-0 right-0 top-full mt-2 bg-surface/80 backdrop-blur-xl border border-primary/20 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="py-1">
-                  {suggestions.map(product => (
-                    <button
-                      key={product.id}
-                      type="button"
-                      onClick={() => {
-                        addItem(product.name);
-                        setShowSuggestions(false);
-                      }}
-                      className="w-full px-4 py-3 flex items-center justify-between hover:bg-primary transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 flex items-center justify-center bg-accent-primary/10 rounded-xl text-accent-primary">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-primary">{product.name}</p>
-                          <p className="text-[10px] font-black text-secondary uppercase tracking-widest">{product.category}</p>
+                  {suggestions.map(product => {
+                    const qty = suggestionQuantities[product.id] ?? 1;
+                    return (
+                      <div
+                        key={product.id}
+                        className="w-full px-4 py-3 flex items-center justify-between gap-2 hover:bg-primary transition-colors"
+                      >
+                        <button
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            addItem(product.name, qty);
+                            setShowSuggestions(false);
+                          }}
+                          className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                        >
+                          <div className="w-8 h-8 shrink-0 flex items-center justify-center bg-accent-primary/10 rounded-xl text-accent-primary">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-primary truncate">{product.name}</p>
+                            <p className="text-[10px] font-black text-secondary uppercase tracking-widest truncate">
+                              {product.category}{product.price > 0 ? ` · ${product.price},-` : ''}
+                            </p>
+                          </div>
+                        </button>
+                        <div
+                          className="flex items-center bg-primary rounded-xl p-0.5 border border-primary shrink-0"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            aria-label="Reduser antall"
+                            onClick={() => setSuggestionQty(product.id, qty - 1)}
+                            className="w-7 h-7 flex items-center justify-center text-accent-primary font-black hover:bg-surface rounded-lg transition-colors"
+                          >–</button>
+                          <span className="w-8 text-center text-xs font-bold text-primary">{qty}</span>
+                          <button
+                            type="button"
+                            aria-label="Øk antall"
+                            onClick={() => setSuggestionQty(product.id, qty + 1)}
+                            className="w-7 h-7 flex items-center justify-center text-accent-primary font-black hover:bg-surface rounded-lg transition-colors"
+                          >+</button>
                         </div>
                       </div>
-                      {product.price > 0 && (
-                        <span className="text-xs font-black text-accent-primary">{product.price},-</span>
-                      )}
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
